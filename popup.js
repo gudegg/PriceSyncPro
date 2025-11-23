@@ -1,6 +1,9 @@
 // PriceSyncPro Extension - Popup Script
 // 这个脚本运行在插件的弹出窗口中
 
+console.log('🚀 PriceSyncPro Popup Script 已加载');
+
+// 不再缓存结果，确保每次都重新获取
 let currentResults = null;
 let currentApiUrl = '';
 
@@ -26,6 +29,10 @@ document.addEventListener('keydown', (e) => {
     if (listModal.classList.contains('show')) {
       listModal.classList.remove('show');
     }
+    if (modelSelectionModal.classList.contains('show')) {
+      modelSelectionModal.classList.remove('show');
+      modelSearchInput.value = '';
+    }
   }
   
   // Ctrl+Enter 或 Cmd+Enter：智能同步
@@ -41,6 +48,7 @@ document.addEventListener('keydown', (e) => {
 // DOM 元素
 const smartSyncBtn = document.getElementById('smartSyncBtn');
 const smartSyncBtnText = document.getElementById('smartSyncBtnText');
+const syncModelsOnlyBtn = document.getElementById('syncModelsOnlyBtn');
 const batchUpdateBtn = document.getElementById('batchUpdateBtn');
 const syncModeHint = document.getElementById('syncModeHint');
 const syncModeText = document.getElementById('syncModeText');
@@ -76,7 +84,7 @@ const apiPathSelectAuto = document.getElementById('apiPathSelectAuto');
 const apiPathCustomAutoInput = document.getElementById('apiPathCustomAuto');
 const modelPrefixAuto = document.getElementById('modelPrefixAuto');
 
-// 自动配置模式的自定义API路径输入框显示/隐藏逻辑
+// 自动配置模式的自定义API路径输入框显示/隐藏逻辑（不再保存到缓存）
 if (apiPathSelectAuto && apiPathCustomAutoInput) {
   apiPathSelectAuto.addEventListener('change', function() {
     if (this.value === 'custom') {
@@ -84,22 +92,24 @@ if (apiPathSelectAuto && apiPathCustomAutoInput) {
     } else {
       apiPathCustomAutoInput.style.display = 'none';
     }
-    // 保存API路径选择
-    chrome.storage.local.set({ autoConfigApiPath: this.value });
+    // 不再保存API路径选择
+    // chrome.storage.local.set({ autoConfigApiPath: this.value });
   });
 }
 
-// 保存自动配置模式的基础URL
+// 保存自动配置模式的基础URL（已禁用）
 if (upstreamBaseUrlAutoInput) {
   upstreamBaseUrlAutoInput.addEventListener('input', () => {
-    chrome.storage.local.set({ autoConfigBaseUrl: upstreamBaseUrlAutoInput.value });
+    // 不再保存基础URL到本地存储
+    // chrome.storage.local.set({ autoConfigBaseUrl: upstreamBaseUrlAutoInput.value });
   });
 }
 
-// 保存自动配置模式的自定义API路径
+// 保存自动配置模式的自定义API路径（已禁用）
 if (apiPathCustomAutoInput) {
   apiPathCustomAutoInput.addEventListener('input', () => {
-    chrome.storage.local.set({ autoConfigApiPathCustom: apiPathCustomAutoInput.value });
+    // 不再保存自定义API路径到本地存储
+    // chrome.storage.local.set({ autoConfigApiPathCustom: apiPathCustomAutoInput.value });
   });
 }
 const apiKeyInput = document.getElementById('apiKeyInput');
@@ -343,12 +353,12 @@ if (autoConfigModeBtn) {
   autoConfigModeBtn.addEventListener('click', () => switchMode('auto'));
 }
 
-// 自动配置模式字段同步到快速模式
+// 自动配置模式字段同步到快速模式（不再保存到缓存）
 if (upstreamUrlAuto) {
   upstreamUrlAuto.addEventListener('input', () => {
     upstreamUrlInput.value = upstreamUrlAuto.value;
-    // 保存自动配置模式的URL
-    chrome.storage.local.set({ autoConfigUrl: upstreamUrlAuto.value });
+    // 不再保存自动配置模式的URL
+    // chrome.storage.local.set({ autoConfigUrl: upstreamUrlAuto.value });
     updateSmartSyncButton();
   });
 }
@@ -356,23 +366,25 @@ if (upstreamUrlAuto) {
 if (modelPrefixAuto) {
   modelPrefixAuto.addEventListener('input', () => {
     modelPrefixInput.value = modelPrefixAuto.value;
-    // 保存自动配置模式的前缀
-    chrome.storage.local.set({ autoConfigPrefix: modelPrefixAuto.value });
+    // 不再保存自动配置模式的前缀
+    // chrome.storage.local.set({ autoConfigPrefix: modelPrefixAuto.value });
     updateSmartSyncButton();
   });
 }
 
-// 保存API密钥输入
+// 保存API密钥输入（已禁用）
 if (apiKeyInput) {
   apiKeyInput.addEventListener('input', () => {
-    chrome.storage.local.set({ autoConfigApiKey: apiKeyInput.value });
+    // 不再保存API密钥到本地存储
+    // chrome.storage.local.set({ autoConfigApiKey: apiKeyInput.value });
   });
 }
 
-// 保存渠道标签输入
+// 保存渠道标签输入（已禁用）
 if (channelTagInput) {
   channelTagInput.addEventListener('input', () => {
-    chrome.storage.local.set({ autoConfigChannelTag: channelTagInput.value });
+    // 不再保存渠道标签到本地存储
+    // chrome.storage.local.set({ autoConfigChannelTag: channelTagInput.value });
   });
 }
 
@@ -386,7 +398,7 @@ const tableSearchInput = document.getElementById('tableSearchInput');
 const prefixSuggestions = document.getElementById('prefixSuggestions');
 const prefixSuggestionButtons = document.getElementById('prefixSuggestionButtons');
 
-// 渠道列表缓存
+// 渠道列表（不再使用缓存，每次都重新获取）
 let channelsList = [];
 
 // URL 验证相关元素（稍后动态创建）
@@ -426,8 +438,30 @@ const listModalMessage = document.getElementById('listModalMessage');
 const presetListContainer = document.getElementById('presetListContainer');
 const listModalCancelBtn = document.getElementById('listModalCancelBtn');
 
+// 模型选择弹窗元素
+const modelSelectionModal = document.getElementById('modelSelectionModal');
+const modelSearchInput = document.getElementById('modelSearchInput');
+const selectAllModelsBtn = document.getElementById('selectAllModelsBtn');
+const deselectAllModelsBtn = document.getElementById('deselectAllModelsBtn');
+const modelSelectionStats = document.getElementById('modelSelectionStats');
+const modelSelectionList = document.getElementById('modelSelectionList');
+const modelSelectionCancelBtn = document.getElementById('modelSelectionCancelBtn');
+const modelSelectionConfirmBtn = document.getElementById('modelSelectionConfirmBtn');
+
 // 多字段编辑对话框元素（延迟获取，因为DOM可能还未完全加载）
 let multiFieldModal, editNameField, editUrlField, editPrefixField;
+
+// 模型选择相关全局变量（不再使用缓存）
+let availableModels = []; // 当前渠道的可用模型列表
+let selectedModels = new Set(); // 用户选择的模型
+let currentChannelId = ''; // 当前渠道ID
+let currentChannelSelectedModels = []; // 当前渠道选择的模型列表（用于同步）
+
+// 已选择模型显示相关元素
+const selectedModelsDisplay = document.getElementById('selectedModelsDisplay');
+const selectedModelsCount = document.getElementById('selectedModelsCount');
+const selectedModelsList = document.getElementById('selectedModelsList');
+const editModelsBtn = document.getElementById('editModelsBtn');
 
 // 确保DOM加载后获取元素
 document.addEventListener('DOMContentLoaded', () => {
@@ -818,10 +852,13 @@ if (closeBannerBtn) {
 upstreamUrlInput.addEventListener('input', () => {
   updateSmartSyncButton();
   showPrefixSuggestions();
+  // 不再自动匹配渠道，确保用户主动选择
+  /*
   clearTimeout(window._matchTimeout);
   window._matchTimeout = setTimeout(() => {
     autoMatchChannelFromUrl();
   }, 500);
+  */
 });
 // modelPrefixInput 的事件监听已在上面处理
 
@@ -877,6 +914,7 @@ function updateSmartSyncButton() {
   
   if (!url) {
     smartSyncBtn.disabled = true;
+    syncModelsOnlyBtn.disabled = true;
     // 根据当前模式设置默认文本
     smartSyncBtnText.textContent = currentMode === 'auto' ? '创建并同步' : '开始同步';
     syncModeHint.style.display = 'none';
@@ -891,16 +929,22 @@ function updateSmartSyncButton() {
       smartSyncBtnText.textContent = '完整同步（模型+价格）';
       syncModeText.textContent = '将同步模型列表并更新价格';
       syncModeHint.style.display = 'block';
+      // 选择渠道时启用"仅同步模型"按钮
+      syncModelsOnlyBtn.disabled = false;
     } else {
       smartSyncBtnText.textContent = '快速更新（仅价格）';
       syncModeText.textContent = '仅更新价格配置';
       syncModeHint.style.display = 'block';
+      // 未选择渠道时禁用"仅同步模型"按钮
+      syncModelsOnlyBtn.disabled = true;
     }
   } else {
     // 自动配置模式：始终显示"创建并同步"
     smartSyncBtnText.textContent = '创建并同步';
     syncModeText.textContent = '将自动创建渠道并同步价格';
     syncModeHint.style.display = 'block';
+    // 自动配置模式下禁用"仅同步模型"按钮
+    syncModelsOnlyBtn.disabled = true;
   }
 }
 
@@ -931,20 +975,23 @@ smartSyncBtn.addEventListener('click', async () => {
       await new Promise(resolve => setTimeout(resolve, 1500));
       await loadChannelList();
       
-      // 步骤3: 自动选择刚创建的渠道
+      // 步骤3: 不再自动选择刚创建的渠道，确保用户主动选择
       const createdChannelName = autoConfigResult.channelName;
       const matchedChannel = channelsList.find(ch => ch.name === createdChannelName);
       
       if (matchedChannel) {
-        channelSelect.value = matchedChannel.id;
-        chrome.storage.local.set({ channelId: matchedChannel.id });
-        showStatus(`✅ 已自动选择渠道: ${createdChannelName}`, 'success');
+        // 不自动选择渠道，只显示创建成功的信息
+        // channelSelect.value = matchedChannel.id;
+        // chrome.storage.local.set({ channelId: matchedChannel.id });
+        showStatus(`✅ 渠道创建成功: ${createdChannelName}，请手动选择该渠道`, 'success');
         await new Promise(resolve => setTimeout(resolve, 500));
       }
       
       // 步骤4: 自动执行完整同步（模型列表 + 价格），跳过确认对话框
       smartSyncBtn.innerHTML = '<span class="spinner"></span>同步模型和价格中...';
       // 自动配置完成后执行完整同步（使用已保存到快速模式的前缀）
+      // 注意：自动配置模式下不使用自定义模型选择，同步所有模型
+      currentChannelSelectedModels = []; // 清空自定义选择，同步所有模型
       await performCompleteSyncLogic(true);
       
     } catch (error) {
@@ -968,6 +1015,15 @@ smartSyncBtn.addEventListener('click', async () => {
     }
   }
 });
+
+// ========================================
+// 仅同步模型按钮
+// ========================================
+if (syncModelsOnlyBtn) {
+  syncModelsOnlyBtn.addEventListener('click', async () => {
+    await performModelsOnlySyncLogic();
+  });
+}
 
 // ========================================
 // 批量更新所有渠道按钮
@@ -1144,6 +1200,136 @@ async function performBatchUpdateAllChannels() {
     // 恢复按钮
     batchUpdateBtn.disabled = false;
     batchUpdateBtn.innerHTML = originalHTML;
+  }
+}
+
+// 仅同步模型逻辑（不同步价格）
+async function performModelsOnlySyncLogic() {
+  const upstreamUrl = getFullUpstreamUrl();
+  // ✅ 修复：根据当前模式获取正确的前缀
+  const prefix = currentMode === 'auto'
+    ? (modelPrefixAuto?.value.trim() ? (modelPrefixAuto.value.trim().endsWith('/') ? modelPrefixAuto.value.trim() : modelPrefixAuto.value.trim() + '/') : '')
+    : getNormalizedPrefix();
+  const channelId = channelSelect.value.trim();
+  
+  if (!channelId) {
+    showStatus('⚠️ 请先选择渠道', 'error');
+    channelSelect.focus();
+    return;
+  }
+  
+  // ✅ 防止重复执行
+  if (syncModelsOnlyBtn.disabled) {
+    return;
+  }
+  
+  const channelIdNum = parseInt(channelId);
+  if (isNaN(channelIdNum) || channelIdNum <= 0) {
+    showStatus('❌ 渠道 ID 格式错误', 'error');
+    return;
+  }
+  
+  // 显示确认对话框
+  const confirmed = await showConfirmDialog({
+    title: '📋 确认仅同步模型',
+    message: '将执行以下操作：\n1. 同步上游模型列表到渠道\n2. 不更新价格配置',
+    info: [
+      { label: '渠道 ID', value: channelIdNum.toString() },
+      { label: '上游 URL', value: upstreamUrl.substring(0, 40) + '...' },
+      { label: '模型前缀', value: prefix || '(无前缀)' }
+    ],
+    confirmText: '开始同步模型',
+    cancelText: '取消'
+  });
+  
+  if (!confirmed) {
+    return;
+  }
+  
+  saveConfig();
+  
+  // 禁用按钮并显示加载状态
+  syncModelsOnlyBtn.disabled = true;
+  const originalButtonHTML = syncModelsOnlyBtn.innerHTML;
+  syncModelsOnlyBtn.innerHTML = '<span class="spinner"></span>同步模型中...';
+  
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    
+    // 确保 content script 已加载
+    const scriptReady = await ensureContentScript(tab.id);
+    if (!scriptReady) {
+      showStatus(
+        '❌ 无法连接到页面脚本\n\n' +
+        '💡 解决方法：\n' +
+        '1. 刷新当前页面（F5）\n' +
+        '2. 重新打开此插件',
+        'error'
+      );
+      return;
+    }
+    
+    // 步骤1: 同步模型列表
+    showProgress(30, '正在同步模型列表');
+    showStatus('🔄 正在同步上游模型列表...', 'info');
+    
+    const syncModelsResult = await sendMessageWithRetry(tab.id, {
+      action: 'syncChannelModels',
+      channelId: channelIdNum,
+      prefix: prefix,
+      tokenGroup: tokenGroupSelect.value,
+      upstreamUrl: upstreamUrl,
+      customModels: currentChannelSelectedModels.length > 0 ? currentChannelSelectedModels : null
+    });
+    
+    if (!syncModelsResult.success) {
+      showStatus(`❌ 同步模型列表失败：${syncModelsResult.error}`, 'error');
+      return;
+    }
+    
+    const syncModelsResponse = syncModelsResult.response;
+    
+    if (!syncModelsResponse.success) {
+      showStatus(`❌ 同步模型列表失败：${syncModelsResponse.error}`, 'error');
+      return;
+    }
+    
+    const modelCount = syncModelsResponse.stats.totalModels;
+    const originalCount = syncModelsResponse.stats.originalModels || modelCount;
+    const customSelection = syncModelsResponse.stats.customSelection;
+    
+    let statusMessage = `✅ 模型同步完成：已同步 ${modelCount} 个模型`;
+    if (customSelection && modelCount < originalCount) {
+      statusMessage += ` (从 ${originalCount} 个中选择)`;
+    }
+    
+    showProgress(100, '✅ 模型同步完成');
+    showStatus(statusMessage, 'success');
+    
+    // 显示详细统计信息
+    let detailedMsg = `🎉 模型同步成功！\n\n` +
+      `📊 同步统计：\n` +
+      `• 总模型数：${modelCount} 个\n`;
+    
+    if (customSelection && modelCount < originalCount) {
+      detailedMsg += `• 原始模型数：${originalCount} 个\n` +
+        `• 自定义选择：是\n`;
+    } else {
+      detailedMsg += `• 自定义选择：否\n`;
+    }
+    
+    detailedMsg += `• 渠道ID：${channelIdNum}\n` +
+      `• 模型前缀：${prefix || '(无前缀)'}`;
+    
+    showStatus(detailedMsg, 'success');
+    
+  } catch (error) {
+    showStatus(`❌ 错误：${error.message}`, 'error');
+  } finally {
+    hideProgress();
+    // 恢复按钮状态
+    syncModelsOnlyBtn.disabled = false;
+    syncModelsOnlyBtn.innerHTML = originalButtonHTML;
   }
 }
 
@@ -1324,7 +1510,8 @@ async function performCompleteSyncLogic(skipConfirmation = false) {
       channelId: channelIdNum,
       prefix: prefix,
       tokenGroup: tokenGroupSelect.value,
-      upstreamUrl: upstreamUrl
+      upstreamUrl: upstreamUrl,
+      customModels: currentChannelSelectedModels.length > 0 ? currentChannelSelectedModels : null
     });
     
     if (!syncModelsResult.success) {
@@ -1339,8 +1526,17 @@ async function performCompleteSyncLogic(skipConfirmation = false) {
       return;
     }
     
-    showProgress(40, `步骤 1/3 完成 (${syncModelsResponse.stats.totalModels}个)`);
-    showStatus(`✅ 步骤 1/3 完成：已同步 ${syncModelsResponse.stats.totalModels} 个模型`, 'success');
+    const modelCount = syncModelsResponse.stats.totalModels;
+    const originalCount = syncModelsResponse.stats.originalModels || modelCount;
+    const customSelection = syncModelsResponse.stats.customSelection;
+    
+    let statusMessage = `✅ 步骤 1/3 完成：已同步 ${modelCount} 个模型`;
+    if (customSelection && modelCount < originalCount) {
+      statusMessage += ` (从 ${originalCount} 个中选择)`;
+    }
+    
+    showProgress(40, `步骤 1/3 完成 (${modelCount}个)`);
+    showStatus(statusMessage, 'success');
     
     // 步骤2: 分析价格
     showProgress(50, '步骤 2/3: 分析价格');
@@ -1392,8 +1588,18 @@ async function performCompleteSyncLogic(skipConfirmation = false) {
     
     if (syncPriceResponse.success) {
       showProgress(100, '✅ 完整同步成功');
+      
+      const modelCount = syncModelsResponse.stats.totalModels;
+      const originalCount = syncModelsResponse.stats.originalModels || modelCount;
+      const customSelection = syncModelsResponse.stats.customSelection;
+      
+      let modelInfo = `📊 步骤 1 - 模型列表：${modelCount} 个`;
+      if (customSelection && modelCount < originalCount) {
+        modelInfo += ` (从 ${originalCount} 个中选择)`;
+      }
+      
       let statusMsg = `🎉 完整同步成功！\n\n` +
-        `📊 步骤 1 - 模型列表：${syncModelsResponse.stats.totalModels} 个\n` +
+        `${modelInfo}\n` +
         `📊 步骤 2 - 价格分析：${analyzeResponse.results.length} 个\n` +
         `📊 步骤 3 - 同步统计：\n` +
         `• ModelPrice: ${syncPriceResponse.stats.modelPriceCount} 个\n` +
@@ -1412,8 +1618,13 @@ async function performCompleteSyncLogic(skipConfirmation = false) {
   }
 }
 
-// 根据 URL 自动匹配渠道
+// 根据 URL 自动匹配渠道（已禁用，确保用户主动选择）
 async function autoMatchChannelFromUrl() {
+  // 不再自动匹配渠道，确保用户主动选择
+  console.log('🔍 自动匹配渠道功能已禁用，需要用户主动选择');
+  return;
+  
+  /*
   const upstreamUrl = getFullUpstreamUrl();
   
   if (!upstreamUrl || channelsList.length === 0) return;
@@ -1470,9 +1681,9 @@ async function autoMatchChannelFromUrl() {
     if (bestMatch && bestMatchScore >= 60) {
       console.log(`✅ 找到匹配渠道: ${bestMatch.name} (ID: ${bestMatch.id}, 匹配度: ${bestMatchScore}%)`);
       
-      // 自动选择渠道
+      // 自动选择渠道（但不保存到缓存）
       channelSelect.value = bestMatch.id;
-      chrome.storage.local.set({ channelId: bestMatch.id });
+      // chrome.storage.local.set({ channelId: bestMatch.id });
       
       // 显示提示
       channelHint.innerHTML = `🎯 已自动匹配渠道: ${bestMatch.name} (匹配度: ${bestMatchScore}%)`;
@@ -1490,10 +1701,16 @@ async function autoMatchChannelFromUrl() {
     // URL 格式错误，忽略
     console.debug('URL 格式暂不完整，跳过自动匹配');
   }
+  */
 }
 
-// 根据前缀自动匹配渠道
+// 根据前缀自动匹配渠道（已禁用，确保用户主动选择）
 function autoMatchChannelFromPrefix() {
+  // 不再自动匹配渠道，确保用户主动选择
+  console.log('🔍 根据前缀自动匹配渠道功能已禁用，需要用户主动选择');
+  return;
+  
+  /*
   const prefix = modelPrefixInput?.value.trim() || '';
   
   if (!prefix || channelsList.length === 0) return;
@@ -1510,7 +1727,7 @@ function autoMatchChannelFromPrefix() {
   if (matchedChannel) {
     console.log(`✅ 找到匹配渠道: ${matchedChannel.name} (ID: ${matchedChannel.id})`);
     channelSelect.value = matchedChannel.id;
-    chrome.storage.local.set({ channelId: matchedChannel.id });
+    // chrome.storage.local.set({ channelId: matchedChannel.id });
     
     channelHint.innerHTML = `🎯 已根据前缀自动选择渠道: ${matchedChannel.name}`;
     channelHint.style.color = 'var(--color-success)';
@@ -1522,15 +1739,21 @@ function autoMatchChannelFromPrefix() {
     
     updateSmartSyncButton();
   }
+  */
 }
 
-// 从 storage 加载保存的配置
+// 从 storage 加载保存的配置（无缓存模式，所有配置都默认为空）
 chrome.storage.local.get([
   'upstreamUrl', 'upstreamBaseUrl', 'apiPath',
   'modelPrefix', 'tokenGroup', 'channelId',
   'autoConfigBaseUrl', 'autoConfigApiPath', 'autoConfigApiPathCustom',
   'autoConfigPrefix', 'autoConfigApiKey', 'autoConfigChannelTag'
 ], (result) => {
+  // 不再恢复任何配置，确保第一次打开插件时所有配置都为空
+  // 用户需要手动填写所有配置项
+  
+  // 注释掉所有配置恢复逻辑
+  /*
   // 优先使用新格式（分离的baseUrl和apiPath）
   if (result.upstreamBaseUrl && upstreamBaseUrlInput) {
     upstreamBaseUrlInput.value = result.upstreamBaseUrl;
@@ -1576,6 +1799,26 @@ chrome.storage.local.get([
   if (result.autoConfigChannelTag && channelTagInput) {
     channelTagInput.value = result.autoConfigChannelTag;
   }
+  */
+  
+  // 确保所有输入框都为空
+  if (upstreamBaseUrlInput) upstreamBaseUrlInput.value = '';
+  if (apiPathSelect) apiPathSelect.value = 'api/pricing'; // 保持默认值
+  if (apiPathCustomInput) {
+    apiPathCustomInput.value = '';
+    apiPathCustomInput.style.display = 'none';
+  }
+  if (modelPrefixInput) modelPrefixInput.value = '';
+  if (tokenGroupSelect) tokenGroupSelect.value = 'default'; // 保持默认值
+  if (upstreamBaseUrlAutoInput) upstreamBaseUrlAutoInput.value = '';
+  if (apiPathSelectAuto) apiPathSelectAuto.value = 'api/pricing'; // 保持默认值
+  if (apiPathCustomAutoInput) {
+    apiPathCustomAutoInput.value = '';
+    apiPathCustomAutoInput.style.display = 'none';
+  }
+  if (modelPrefixAuto) modelPrefixAuto.value = '';
+  if (apiKeyInput) apiKeyInput.value = '';
+  if (channelTagInput) channelTagInput.value = '';
   
   updateSmartSyncButton();
   
@@ -1588,12 +1831,17 @@ chrome.storage.local.get([
   // 自动加载渠道列表
   loadChannelList();
   
-  // 如果有保存的渠道 ID，恢复选择
+  // 不再恢复渠道选择，确保每次都重新选择
+  // 注释掉缓存恢复逻辑，确保用户每次打开插件都需要重新选择渠道
+  /*
   if (result.channelId) {
     setTimeout(() => {
       channelSelect.value = result.channelId;
+      // 触发渠道选择变化事件，以加载已选择的模型显示
+      channelSelect.dispatchEvent(new Event('change'));
     }, 500);
   }
+  */
 });
 
 // ========================================
@@ -1601,7 +1849,7 @@ chrome.storage.local.get([
 // ========================================
 
 /**
- * 加载渠道列表
+ * 加载渠道列表（无缓存模式，每次都重新获取）
  */
 async function loadChannelList() {
   try {
@@ -1621,7 +1869,7 @@ async function loadChannelList() {
       return;
     }
     
-    // 获取渠道列表
+    // 获取渠道列表（每次都重新获取，不使用缓存）
     const result = await sendMessageWithRetry(tab.id, {
       action: 'getChannelList'
     });
@@ -1636,13 +1884,14 @@ async function loadChannelList() {
     const response = result.response;
     
     if (response.success && response.channels) {
+      // 每次都重新获取渠道列表，不使用缓存
       channelsList = response.channels;
       renderChannelSelect(response.channels);
       channelHint.innerHTML = `✅ 已加载 ${response.channels.length} 个渠道`;
       channelHint.style.color = 'var(--color-success)';
       
-      // 渠道列表加载完成后，尝试根据前缀自动匹配
-      autoMatchChannelFromPrefix();
+      // 渠道列表加载完成后，不再自动匹配渠道，确保用户主动选择
+      // autoMatchChannelFromPrefix();
       
       // 2秒后隐藏成功提示
       setTimeout(() => {
@@ -1695,11 +1944,20 @@ if (refreshChannelsBtn) {
   });
 }
 
-// 渠道选择变化时保存并触发智能匹配
-channelSelect.addEventListener('change', () => {
+// 渠道选择变化时触发智能匹配（不再保存到缓存）
+channelSelect.addEventListener('change', async () => {
   const channelId = channelSelect.value;
+  
+  // 如果没有选择渠道，清空模型选择并隐藏显示区域
+  if (!channelId) {
+    currentChannelSelectedModels = [];
+    updateSelectedModelsDisplay();
+    return;
+  }
+  
   if (channelId) {
-    chrome.storage.local.set({ channelId: channelId });
+    // 不再保存到本地存储，确保每次都重新选择
+    // chrome.storage.local.set({ channelId: channelId });
     
     // 智能填充：从选中的渠道自动获取URL和前缀
     const selectedChannel = channelsList.find(ch => ch.id == channelId);
@@ -1728,6 +1986,37 @@ channelSelect.addEventListener('change', () => {
     }
     
     performIntelligentChannelMatch();
+    
+    // 修复Bug 2: 每次切换渠道都显示模型选择弹窗
+    // 修复Bug 1: 确保即使没有新选择，也能正确显示已选择的模型
+    console.log(`🔍 渠道选择变化，准备显示模型选择弹窗，渠道ID: ${channelId}`);
+    
+    try {
+      // 每次都重新显示模型选择弹窗，不使用缓存
+      console.log(`🔍 调用 showModelSelectionModal`);
+      const selectedModelsList = await showModelSelectionModal(channelId);
+      console.log(`🔍 showModelSelectionModal 返回，选择了 ${selectedModelsList.length} 个模型`);
+      
+      currentChannelSelectedModels = selectedModelsList; // 保存选择的模型列表
+      
+      if (selectedModelsList.length === 0) {
+        showStatus('⚠️ 未选择任何模型，将同步所有可用模型', 'warning');
+      } else {
+        showStatus(`✅ 已选择 ${selectedModelsList.length} 个模型进行同步`, 'success');
+        setTimeout(() => {
+          statusDiv.classList.remove('show');
+        }, 2000);
+      }
+      
+      // 修复Bug 1: 确保更新已选择模型的显示
+      console.log(`🔍 更新已选择模型显示`);
+      updateSelectedModelsDisplay();
+    } catch (error) {
+      console.error('显示模型选择弹窗失败:', error);
+      showStatus('⚠️ 模型选择弹窗显示失败，将同步所有模型', 'warning');
+      currentChannelSelectedModels = []; // 清空选择
+      updateSelectedModelsDisplay();
+    }
   }
   
   // 更新智能同步按钮状态
@@ -1765,7 +2054,7 @@ if (modelPrefixInput) {
   });
 }
 
-// 智能渠道匹配函数
+// 智能渠道匹配函数（已禁用自动匹配，确保用户主动选择）
 function performIntelligentChannelMatch() {
   const selectedOption = channelSelect.options[channelSelect.selectedIndex];
   if (!selectedOption || selectedOption.value === '') return;
@@ -1780,7 +2069,8 @@ function performIntelligentChannelMatch() {
   const cleanUpstreamUrl = upstreamUrl.replace(/^https?:\/\//, '').split('/')[0].replace(/:\d+$/, '');
   
   if (cleanUpstreamUrl.includes(cleanBaseUrl) || cleanBaseUrl.includes(cleanUpstreamUrl)) {
-    channelHint.innerHTML = '✅ 检测到渠道 URL 与上游 URL 匹配，建议使用此渠道';
+    // 只显示匹配提示，不自动选择
+    channelHint.innerHTML = '✅ 检测到渠道 URL 与上游 URL 匹配';
     channelHint.style.color = 'var(--color-success)';
     
     setTimeout(() => {
@@ -2549,6 +2839,494 @@ async function performEnhancedSmartSync() {
   // ✅ 修复：确保在所有路径下都恢复按钮状态
   smartSyncBtn.disabled = false;
   updateSmartSyncButton();
+}
+
+// ========================================
+// 模型选择弹窗功能
+// ========================================
+
+/**
+ * 显示模型选择弹窗（无缓存模式）
+ * @param {string} channelId - 渠道ID
+ * @returns {Promise<Array<string>>} 用户选择的模型列表
+ */
+async function showModelSelectionModal(channelId) {
+  return new Promise(async (resolve) => {
+    try {
+      currentChannelId = channelId;
+      
+      // 每次都重新获取渠道的可用模型列表，不使用缓存
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      const scriptReady = await ensureContentScript(tab.id);
+      if (!scriptReady) {
+        showStatus('❌ 无法连接到页面脚本，请刷新页面后重试', 'error');
+        resolve([]);
+        return;
+      }
+      
+      showStatus('📋 正在获取模型列表...', 'info');
+      
+      const result = await sendMessageWithRetry(tab.id, {
+        action: 'fetchChannelModels',
+        channelId: parseInt(channelId)
+      });
+      
+      if (!result.success) {
+        showStatus(`❌ 获取模型列表失败：${result.error}`, 'error');
+        resolve([]);
+        return;
+      }
+      
+      // 每次都重新获取可用模型列表，不使用缓存
+      availableModels = result.response.models || [];
+      console.log(`🔍 获取到可用模型列表: ${availableModels.length} 个`, availableModels);
+      
+      if (availableModels.length === 0) {
+        showStatus('⚠️ 该渠道没有可用的模型', 'warning');
+        resolve([]);
+        return;
+      }
+      
+      // 先清空selectedModels，然后重新获取渠道详情进行预选
+      selectedModels.clear();
+      console.log(`🔍 已清空selectedModels，准备重新预选`);
+      
+      // 获取渠道详情并预选模型
+      console.log(`🔍 准备调用 restoreChannelModelSelection，渠道ID: ${channelId}`);
+      await restoreChannelModelSelection(channelId);
+      console.log(`🔍 restoreChannelModelSelection 调用完成`);
+      
+      // 修复Bug 1: 在显示弹窗前，先保存当前选择状态，以便在用户没有修改时也能返回正确的选择
+      const initialSelectedModels = Array.from(selectedModels);
+      console.log(`🔍 保存初始选择状态: ${initialSelectedModels.length} 个模型`, initialSelectedModels);
+      
+      // 渲染模型选择列表
+      renderModelSelectionList();
+      
+      // 显示弹窗
+      modelSelectionModal.classList.add('show');
+      
+      // 绑定事件
+      bindModelSelectionEvents(resolve, initialSelectedModels);
+      
+    } catch (error) {
+      console.error('显示模型选择弹窗失败:', error);
+      showStatus(`❌ 显示模型选择弹窗失败：${error.message}`, 'error');
+      resolve([]);
+    }
+  });
+}
+
+/**
+ * 从接口实时获取渠道的模型选择状态（根据渠道的models和model_mapping预选）
+ * @param {string} channelId - 渠道ID
+ */
+async function restoreChannelModelSelection(channelId) {
+  console.log(`🚀 开始恢复渠道 ${channelId} 的模型选择状态`);
+  
+  try {
+    // 确保availableModels已经设置
+    if (!availableModels || availableModels.length === 0) {
+      console.warn('⚠️ availableModels 未设置，无法预选模型');
+      selectedModels = new Set();
+      return;
+    }
+    
+    console.log(`✅ availableModels 已设置: ${availableModels.length} 个模型`, availableModels);
+    
+    // 每次都从接口实时获取，不使用任何缓存
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    console.log(`🔍 准备调用 getChannelDetails 接口，渠道ID: ${channelId}`);
+    
+    const channelDetailsResult = await sendMessageWithRetry(tab.id, {
+      action: 'getChannelDetails',
+      channelId: parseInt(channelId)
+    });
+    
+    console.log(`🔍 getChannelDetails 接口返回:`, channelDetailsResult);
+    
+    if (channelDetailsResult.success && channelDetailsResult.response.channel) {
+      const channel = channelDetailsResult.response.channel;
+      const currentChannelModels = channel.models || '';
+      const modelMapping = channel.model_mapping || '';
+      
+      console.log(`🔍 渠道 ${channelId} 详情:`, {
+        models: currentChannelModels,
+        model_mapping: modelMapping
+      });
+      
+      // 解析模型列表
+      let modelNames = [];
+      if (currentChannelModels) {
+        if (typeof currentChannelModels === 'string') {
+          // 字符串格式：用逗号分隔
+          modelNames = currentChannelModels.split(',').map(name => name.trim()).filter(name => name);
+          console.log(`🔍 models字段是字符串格式，解析出 ${modelNames.length} 个模型`);
+        } else if (Array.isArray(currentChannelModels)) {
+          // 数组格式：直接使用
+          modelNames = currentChannelModels;
+          console.log(`🔍 models字段是数组格式，包含 ${modelNames.length} 个模型`);
+        } else {
+          console.warn(`⚠️ models字段格式未知:`, typeof currentChannelModels, currentChannelModels);
+        }
+      }
+      
+      console.log(`🔍 解析出的模型名称: ${modelNames.length} 个`, modelNames);
+      
+      // 解析模型映射，获取真正的模型名称
+      let realModelNames = [];
+      if (modelMapping && modelNames.length > 0) {
+        try {
+          const mapping = JSON.parse(modelMapping);
+          console.log(`🔍 模型映射对象:`, mapping);
+          
+          realModelNames = modelNames.map(fullName => {
+            const mappedName = mapping[fullName] || fullName;
+            console.log(`🔍 映射: ${fullName} → ${mappedName}`);
+            return mappedName;
+          });
+          console.log(`🔍 使用 model_mapping 解析模型: ${modelNames.length} 个 → ${realModelNames.length} 个`);
+          console.log(`🔍 解析后的模型列表:`, realModelNames);
+        } catch (e) {
+          console.warn('解析 model_mapping 失败，使用原始模型名称:', e);
+          console.warn('model_mapping 原始内容:', modelMapping);
+          realModelNames = modelNames;
+        }
+      } else {
+        realModelNames = modelNames;
+        console.log(`🔍 无 model_mapping，直接使用 models: ${realModelNames.length} 个`);
+        console.log(`🔍 原始模型列表:`, realModelNames);
+      }
+      
+      // 根据渠道当前已有的模型预选（从可用模型列表中筛选）
+      selectedModels = new Set();
+      
+      // 只使用直接匹配
+      availableModels.forEach(model => {
+        if (realModelNames.includes(model)) {
+          selectedModels.add(model);
+          console.log(`✅ 匹配成功: ${model}`);
+        }
+      });
+      
+      console.log(`✅ 渠道 ${channelId} 当前有 ${realModelNames.length} 个模型，可用模型 ${availableModels.length} 个，预选了 ${selectedModels.size} 个匹配的模型`);
+      console.log(`🔍 可用模型列表:`, availableModels);
+      console.log(`🔍 渠道模型列表:`, realModelNames);
+      console.log(`🔍 预选的模型:`, Array.from(selectedModels));
+      
+      // 如果没有匹配到任何模型，输出详细信息用于调试
+      if (selectedModels.size === 0 && realModelNames.length > 0) {
+        console.warn(`⚠️ 没有匹配到任何模型，渠道有 ${realModelNames.length} 个模型但都不在可用模型列表中`);
+        console.warn(`⚠️ 渠道模型:`, realModelNames);
+        console.warn(`⚠️ 可用模型:`, availableModels);
+      }
+      
+      // 如果渠道没有任何模型，输出提示信息
+      if (realModelNames.length === 0) {
+        console.warn(`⚠️ 渠道没有任何模型`);
+      }
+    } else {
+      // 获取渠道详情失败，默认不选择任何模型
+      selectedModels = new Set();
+      console.log(`⚠️ 无法获取渠道 ${channelId} 的详情，默认不选择任何模型`);
+      console.log(`⚠️ 接口返回:`, channelDetailsResult);
+    }
+  } catch (error) {
+    console.error('获取渠道详情失败:', error);
+    // 获取渠道详情失败，默认不选择任何模型
+    selectedModels = new Set();
+  }
+  
+  console.log(`🏁 恢复渠道 ${channelId} 的模型选择状态完成，预选了 ${selectedModels.size} 个模型`);
+}
+
+/**
+ * 不再保存渠道的模型选择状态到存储（无缓存模式）
+ * @param {string} channelId - 渠道ID
+ */
+async function saveChannelModelSelection(channelId) {
+  // 不再保存到本地存储，确保每次都重新选择
+  // 这样可以避免使用缓存，确保每次都是主动选择
+  console.log(`🔍 渠道 ${channelId} 的模型选择不保存到缓存（无缓存模式）: ${selectedModels.size} 个`);
+  
+  /*
+  try {
+    const result = await chrome.storage.local.get(['channelModelSelections']);
+    const selections = result.channelModelSelections || {};
+    
+    selections[channelId] = Array.from(selectedModels);
+    
+    await chrome.storage.local.set({ channelModelSelections: selections });
+    console.log(`✅ 保存渠道 ${channelId} 的模型选择: ${selectedModels.size} 个`);
+  } catch (error) {
+    console.error('保存模型选择状态失败:', error);
+  }
+  */
+}
+
+/**
+ * 渲染模型选择列表
+ */
+function renderModelSelectionList(searchTerm = '') {
+  const filteredModels = availableModels.filter(model =>
+    model.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+  
+  modelSelectionList.innerHTML = '';
+  
+  if (filteredModels.length === 0) {
+    modelSelectionList.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">🔍</div>
+        <div class="empty-state-text">没有找到匹配的模型</div>
+      </div>
+    `;
+    updateModelSelectionStats();
+    return;
+  }
+  
+  console.log(`🔍 渲染模型列表: ${filteredModels.length} 个模型，已选择 ${selectedModels.size} 个`);
+  console.log(`🔍 已选择的模型:`, Array.from(selectedModels));
+  
+  const fragment = document.createDocumentFragment();
+  
+  filteredModels.forEach(model => {
+    const modelItem = document.createElement('div');
+    modelItem.className = 'model-selection-item';
+    
+    const isChecked = selectedModels.has(model);
+    
+    // 调试日志 - 显示每个模型的选中状态
+    console.log(`🔍 模型 "${model}" 选中状态: ${isChecked}`);
+    
+    // 创建复选框元素
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'model-checkbox';
+    checkbox.dataset.model = model;
+    
+    // 设置选中状态 - 确保在添加到DOM之前设置
+    checkbox.checked = isChecked;
+    
+    // 创建模型名称元素
+    const modelName = document.createElement('span');
+    modelName.className = 'model-name';
+    modelName.textContent = model;
+    
+    // 添加到模型项
+    modelItem.appendChild(checkbox);
+    modelItem.appendChild(modelName);
+    
+    // 选中状态样式
+    if (isChecked) {
+      modelItem.classList.add('selected');
+      console.log(`✅ 应用选中样式: ${model}`);
+    }
+    
+    fragment.appendChild(modelItem);
+  });
+  
+  modelSelectionList.appendChild(fragment);
+  updateModelSelectionStats();
+  
+  // 绑定复选框事件 - 使用事件委托避免重复绑定
+  modelSelectionList.addEventListener('change', (e) => {
+    if (e.target.classList.contains('model-checkbox')) {
+      const model = e.target.dataset.model;
+      const modelItem = e.target.closest('.model-selection-item');
+      
+      if (e.target.checked) {
+        selectedModels.add(model);
+        modelItem.classList.add('selected');
+        console.log(`✅ 用户选择了模型: ${model}`);
+      } else {
+        selectedModels.delete(model);
+        modelItem.classList.remove('selected');
+        console.log(`❌ 用户取消选择了模型: ${model}`);
+      }
+      
+      updateModelSelectionStats();
+    }
+  });
+}
+
+/**
+ * 更新选择统计信息
+ */
+function updateModelSelectionStats() {
+  const total = availableModels.length;
+  const selected = selectedModels.size;
+  
+  modelSelectionStats.textContent = `已选择 ${selected} / ${total} 个模型`;
+  
+  // 更新按钮状态
+  selectAllModelsBtn.disabled = selected === total;
+  deselectAllModelsBtn.disabled = selected === 0;
+}
+
+/**
+ * 绑定模型选择弹窗事件
+ * @param {Function} resolve - Promise resolve 函数
+ * @param {Array<string>} initialSelectedModels - 初始选择的模型列表
+ */
+function bindModelSelectionEvents(resolve, initialSelectedModels = []) {
+  // 搜索功能
+  modelSearchInput.addEventListener('input', (e) => {
+    renderModelSelectionList(e.target.value);
+  });
+  
+  // 全选按钮
+  selectAllModelsBtn.addEventListener('click', () => {
+    selectedModels = new Set(availableModels);
+    renderModelSelectionList(modelSearchInput.value);
+  });
+  
+  // 全不选按钮
+  deselectAllModelsBtn.addEventListener('click', () => {
+    selectedModels.clear();
+    renderModelSelectionList(modelSearchInput.value);
+  });
+  
+  // 取消按钮
+  const handleCancel = () => {
+    modelSelectionModal.classList.remove('show');
+    modelSearchInput.value = '';
+    // 修复Bug 1: 取消时返回空数组，表示用户取消了操作
+    resolve([]);
+  };
+  
+  // 确认按钮
+  const handleConfirm = async () => {
+    // 不再保存到缓存，但保留函数调用以保持代码结构
+    await saveChannelModelSelection(currentChannelId);
+    modelSelectionModal.classList.remove('show');
+    modelSearchInput.value = '';
+    resolve(Array.from(selectedModels));
+  };
+  
+  // 重新绑定按钮事件（避免重复绑定）
+  const newCancelBtn = modelSelectionCancelBtn.cloneNode(true);
+  const newConfirmBtn = modelSelectionConfirmBtn.cloneNode(true);
+  modelSelectionCancelBtn.parentNode.replaceChild(newCancelBtn, modelSelectionCancelBtn);
+  modelSelectionConfirmBtn.parentNode.replaceChild(newConfirmBtn, modelSelectionConfirmBtn);
+  
+  newCancelBtn.addEventListener('click', handleCancel);
+  newConfirmBtn.addEventListener('click', handleConfirm);
+  
+  // 点击遮罩层关闭
+  const handleOverlayClick = (e) => {
+    if (e.target === modelSelectionModal) {
+      handleCancel();
+    }
+  };
+  
+  modelSelectionModal.addEventListener('click', handleOverlayClick);
+  
+  // ESC 键关闭
+  const handleEscKey = (e) => {
+    if (e.key === 'Escape' && modelSelectionModal.classList.contains('show')) {
+      handleCancel();
+      document.removeEventListener('keydown', handleEscKey);
+    }
+  };
+  
+  document.addEventListener('keydown', handleEscKey);
+}
+
+/**
+ * 更新已选择模型的显示（无缓存模式）
+ */
+async function updateSelectedModelsDisplay() {
+  if (!selectedModelsDisplay || !selectedModelsCount || !selectedModelsList) {
+    return;
+  }
+  
+  const channelId = channelSelect.value.trim();
+  
+  if (!channelId) {
+    selectedModelsDisplay.style.display = 'none';
+    return;
+  }
+  
+  try {
+    let currentModels = [];
+    
+    // 只使用用户当前选择的模型列表（currentChannelSelectedModels）
+    // 不再从渠道列表中获取渠道的当前状态，避免使用缓存
+    if (currentChannelSelectedModels && currentChannelSelectedModels.length > 0) {
+      currentModels = [...currentChannelSelectedModels];
+      console.log(`🔍 使用用户当前选择的模型: ${currentModels.length} 个`);
+    } else {
+      // 用户没有选择模型时，显示未选择状态，不使用缓存
+      currentModels = [];
+      console.log(`🔍 用户未选择任何模型（无缓存模式）`);
+    }
+    
+    selectedModelsDisplay.style.display = 'block';
+    
+    // 更新计数
+    selectedModelsCount.textContent = `已选择 ${currentModels.length} 个模型`;
+    
+    // 更新模型列表
+    if (currentModels.length === 0) {
+      selectedModelsList.innerHTML = '<div style="color: var(--color-text-secondary); font-style: italic;">未选择任何模型</div>';
+    } else {
+      // 限制显示的模型数量，避免界面过长
+      const maxDisplay = 10;
+      const displayModels = currentModels.slice(0, maxDisplay);
+      const remainingCount = currentModels.length - maxDisplay;
+      
+      selectedModelsList.innerHTML = displayModels.map(model =>
+        `<div style="padding: 2px 0; color: var(--color-text-primary);">• ${model}</div>`
+      ).join('');
+      
+      if (remainingCount > 0) {
+        selectedModelsList.innerHTML += `<div style="padding: 4px 0; color: var(--color-text-secondary); font-style: italic;">... 还有 ${remainingCount} 个模型</div>`;
+      }
+    }
+  } catch (error) {
+    console.error('更新已选择模型显示失败:', error);
+    // 获取失败时隐藏显示区域
+    selectedModelsDisplay.style.display = 'none';
+  }
+}
+
+/**
+ * 重新打开模型选择弹窗
+ */
+async function reopenModelSelectionModal() {
+  const channelId = channelSelect.value.trim();
+  if (!channelId) {
+    showStatus('⚠️ 请先选择渠道', 'warning');
+    return;
+  }
+  
+  try {
+    const selectedModelsList = await showModelSelectionModal(channelId);
+    currentChannelSelectedModels = selectedModelsList; // 保存选择的模型列表
+    
+    if (selectedModelsList.length === 0) {
+      showStatus('⚠️ 未选择任何模型，将同步所有可用模型', 'warning');
+    } else {
+      showStatus(`✅ 已更新选择 ${selectedModelsList.length} 个模型进行同步`, 'success');
+      setTimeout(() => {
+        statusDiv.classList.remove('show');
+      }, 2000);
+    }
+    
+    // 更新显示
+    updateSelectedModelsDisplay();
+  } catch (error) {
+    console.error('重新打开模型选择弹窗失败:', error);
+    showStatus('⚠️ 模型选择弹窗显示失败，将同步所有模型', 'warning');
+    currentChannelSelectedModels = []; // 清空选择
+    updateSelectedModelsDisplay();
+  }
+}
+
+// 绑定编辑按钮事件
+if (editModelsBtn) {
+  editModelsBtn.addEventListener('click', reopenModelSelectionModal);
 }
 
 // 初始化：自动配置开关提示

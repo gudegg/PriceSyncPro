@@ -1,6 +1,13 @@
 // PriceSyncPro Extension - Content Script
 // 这个脚本注入到页面中，可以访问页面的 Cookie 和发起同源请求
 
+// 防止重复注入
+if (window.priceSyncProLoaded) {
+  console.log('⚠️ PriceSyncPro Content Script 已加载，跳过重复注入');
+} else {
+  window.priceSyncProLoaded = true;
+  console.log('✅ PriceSyncPro Extension 开始加载 Content Script');
+
 /**
  * 记录错误日志到 storage
  * @param {string} action - 操作名称
@@ -1109,10 +1116,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       }
       else if (request.action === 'syncChannelModels') {
         // 同步渠道模型列表
-        const { channelId, prefix, tokenGroup, upstreamUrl } = request;
+        const { channelId, prefix, tokenGroup, upstreamUrl, customModels } = request;
         
         console.log(`🔄 开始同步渠道 ${channelId} 的模型列表，前缀: ${prefix || '(无)'}，令牌组: ${tokenGroup || '(全部)'}`);
         console.log(`📡 上游 URL: ${upstreamUrl || '(未提供)'}`);
+        if (customModels) {
+          console.log(`🎯 自定义模型选择: ${customModels.length} 个模型`);
+        }
         
         // 获取当前 API URL（后台 API）
         const apiUrl = getCurrentApiUrl();
@@ -1266,16 +1276,29 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           }
         }
         
-        // 步骤2: 处理模型名称（添加前缀）
-        const modelsWithPrefix = upstreamModels.map(modelName => {
+        // 步骤2: 如果有自定义模型选择，过滤模型列表
+        let finalModels = upstreamModels;
+        if (customModels && Array.isArray(customModels) && customModels.length > 0) {
+          console.log(`🎯 应用自定义模型选择，从 ${upstreamModels.length} 个中筛选 ${customModels.length} 个`);
+          finalModels = upstreamModels.filter(model => customModels.includes(model));
+          
+          if (finalModels.length === 0) {
+            throw new Error('自定义模型选择与可用模型列表不匹配');
+          }
+          
+          console.log(`✅ 筛选后剩余 ${finalModels.length} 个模型`);
+        }
+        
+        // 步骤3: 处理模型名称（添加前缀）
+        const modelsWithPrefix = finalModels.map(modelName => {
           return prefix ? `${prefix}${modelName}` : modelName;
         });
         
         console.log('📝 处理后的模型列表（前3个）:', modelsWithPrefix.slice(0, 3));
         
-        // 步骤3: 生成 model_mapping（映射关系）
+        // 步骤4: 生成 model_mapping（映射关系）
         const modelMapping = {};
-        upstreamModels.forEach(originalName => {
+        finalModels.forEach(originalName => {
           const nameWithPrefix = prefix ? `${prefix}${originalName}` : originalName;
           modelMapping[nameWithPrefix] = originalName;
         });
@@ -1353,14 +1376,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         sendResponse({
           success: true,
           stats: {
-            totalModels: upstreamModels.length,
+            totalModels: finalModels.length,
+            originalModels: upstreamModels.length,
             prefix: prefix || '(无)',
             channelId: channelId,
-            usedFallback: usedFallback
+            usedFallback: usedFallback,
+            customSelection: customModels ? true : false
           },
           message: usedFallback
             ? '无法直接获取模型列表，已从定价信息中提取'
-            : undefined
+            : (customModels ? `已应用自定义模型选择 (${finalModels.length}/${upstreamModels.length})` : undefined)
         });
       }
       else if (request.action === 'createChannel') {
@@ -1512,6 +1537,145 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           stats: stats
         });
       }
+      else if (request.action === 'fetchChannelModels') {
+        // 获取渠道可用模型列表（用于模型选择弹窗）
+        const { channelId } = request;
+        
+        console.log(`📋 开始获取渠道 ${channelId} 的可用模型列表...`);
+        
+        const apiUrl = getCurrentApiUrl();
+        
+        // 获取认证信息
+        const cookieData = await getCookiesFromAPI(apiUrl);
+        if (!cookieData || !cookieData.success || !cookieData.newApiUser) {
+          throw new Error('无法获取登录状态，请确保已登录 New API 后台');
+        }
+        
+        const headers = {
+          'New-API-User': cookieData.newApiUser
+        };
+        
+        try {
+          // 调用 fetch_models API 获取模型列表
+          const fetchModelsUrl = `${apiUrl}/api/channel/fetch_models/${channelId}`;
+          console.log(`📡 请求模型列表: ${fetchModelsUrl}`);
+          
+          const modelsResponse = await fetch(fetchModelsUrl, {
+            method: 'GET',
+            headers: headers,
+            credentials: 'include'
+          });
+          
+          if (!modelsResponse.ok) {
+            throw new Error(`获取模型列表失败 (HTTP ${modelsResponse.status})`);
+          }
+          
+          const modelsData = await modelsResponse.json();
+          console.log('📦 模型列表数据:', modelsData);
+          
+          if (!modelsData.success || !modelsData.data) {
+            throw new Error('模型列表数据格式错误');
+          }
+          
+          let modelList = [];
+          
+          // 处理不同的数据格式
+          if (Array.isArray(modelsData.data)) {
+            // 直接是数组格式
+            modelList = modelsData.data;
+          } else if (modelsData.data.models && typeof modelsData.data.models === 'string') {
+            // models 字段是逗号分隔的字符串
+            modelList = modelsData.data.models.split(',').map(name => name.trim()).filter(name => name);
+          } else if (modelsData.data.models && Array.isArray(modelsData.data.models)) {
+            // models 字段是数组
+            modelList = modelsData.data.models;
+          } else {
+            throw new Error('无法解析模型列表数据格式');
+          }
+          
+          console.log(`✅ 获取到 ${modelList.length} 个可用模型`);
+          
+          sendResponse({
+            success: true,
+            models: modelList,
+            channelId: channelId
+          });
+          
+        } catch (error) {
+          console.error('获取渠道模型列表失败:', error);
+          sendResponse({
+            success: false,
+            error: error.message
+          });
+        }
+      }
+      else if (request.action === 'getChannelDetails') {
+        // 获取渠道详情（包括当前模型列表）
+        const { channelId } = request;
+        
+        console.log(`📋 开始获取渠道 ${channelId} 的详情...`);
+        
+        const apiUrl = getCurrentApiUrl();
+        
+        // 获取认证信息
+        const cookieData = await getCookiesFromAPI(apiUrl);
+        if (!cookieData || !cookieData.success || !cookieData.newApiUser) {
+          throw new Error('无法获取登录状态，请确保已登录 New API 后台');
+        }
+        
+        const headers = {
+          'New-API-User': cookieData.newApiUser
+        };
+        
+        try {
+          // 获取渠道详情
+          const channelResponse = await fetch(`${apiUrl}/api/channel/${channelId}`, {
+            method: 'GET',
+            headers: headers,
+            credentials: 'include'
+          });
+          
+          if (!channelResponse.ok) {
+            throw new Error(`获取渠道详情失败 (HTTP ${channelResponse.status})`);
+          }
+          
+          const channelData = await channelResponse.json();
+          console.log('📦 渠道详情数据:', channelData);
+          
+          if (!channelData.success || !channelData.data) {
+            throw new Error('渠道详情数据格式错误');
+          }
+          
+          const channel = channelData.data;
+          
+          // 解析模型列表
+          let currentModels = [];
+          if (channel.models && typeof channel.models === 'string') {
+            currentModels = channel.models.split(',').map(name => name.trim()).filter(name => name);
+          }
+          
+          console.log(`✅ 获取到渠道详情，当前有 ${currentModels.length} 个模型`);
+          
+          sendResponse({
+            success: true,
+            channel: {
+              id: channel.id,
+              name: channel.name,
+              models: currentModels,
+              model_mapping: channel.model_mapping || '',
+              baseUrl: channel.base_url,
+              tag: channel.tag
+            }
+          });
+          
+        } catch (error) {
+          console.error('获取渠道详情失败:', error);
+          sendResponse({
+            success: false,
+            error: error.message
+          });
+        }
+      }
     } catch (error) {
       // 记录详细错误信息
       await logError(request.action || 'unknown', error, {
@@ -1539,4 +1703,5 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   return true;
 });
 
-console.log('✅ PriceSyncPro Extension 已加载');
+  console.log('✅ PriceSyncPro Extension Content Script 加载完成');
+}
