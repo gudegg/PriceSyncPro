@@ -71,6 +71,7 @@ if (apiPathSelect && apiPathCustomInput) {
 }
 const tokenGroupSelect = document.getElementById('tokenGroupSelect');
 const channelSelect = document.getElementById('channelSelect');
+const channelLoadingOverlay = document.getElementById('channelLoadingOverlay');
 
 // 模式切换相关元素
 const quickSyncModeBtn = document.getElementById('quickSyncModeBtn');
@@ -1935,9 +1936,15 @@ if (refreshChannelsBtn) {
   refreshChannelsBtn.addEventListener('click', async () => {
     refreshChannelsBtn.style.transform = 'rotate(360deg)';
     refreshChannelsBtn.style.transition = 'transform 0.5s ease';
-    
+
+    // 显示加载状态
+    showChannelLoadingOverlay('正在刷新渠道列表...', '请稍候');
+
     await loadChannelList();
-    
+
+    // 隐藏加载状态
+    hideChannelLoadingOverlay();
+
     setTimeout(() => {
       refreshChannelsBtn.style.transform = '';
     }, 500);
@@ -1990,12 +1997,18 @@ channelSelect.addEventListener('change', async () => {
     // 修复Bug 2: 每次切换渠道都显示模型选择弹窗
     // 修复Bug 1: 确保即使没有新选择，也能正确显示已选择的模型
     console.log(`🔍 渠道选择变化，准备显示模型选择弹窗，渠道ID: ${channelId}`);
-    
+
     try {
+      // 显示加载遮罩层，让用户知道正在加载模型
+      showChannelLoadingOverlay();
+
       // 每次都重新显示模型选择弹窗，不使用缓存
       console.log(`🔍 调用 showModelSelectionModal`);
       const selectedModelsList = await showModelSelectionModal(channelId);
       console.log(`🔍 showModelSelectionModal 返回，选择了 ${selectedModelsList.length} 个模型`);
+
+      // 隐藏加载遮罩层
+      hideChannelLoadingOverlay();
       
       currentChannelSelectedModels = selectedModelsList; // 保存选择的模型列表
       
@@ -2016,6 +2029,9 @@ channelSelect.addEventListener('change', async () => {
       showStatus('⚠️ 模型选择弹窗显示失败，将同步所有模型', 'warning');
       currentChannelSelectedModels = []; // 清空选择
       updateSelectedModelsDisplay();
+
+      // 确保隐藏加载遮罩层
+      hideChannelLoadingOverlay();
     }
   }
   
@@ -2842,6 +2858,56 @@ async function performEnhancedSmartSync() {
 }
 
 // ========================================
+// 加载状态管理
+// ========================================
+
+/**
+ * 显示渠道加载遮罩层
+ * @param {string} text - 主加载文本
+ * @param {string} subtext - 副加载文本
+ */
+function showChannelLoadingOverlay(text = '正在加载模型列表...', subtext = '请稍候，正在获取渠道模型数据') {
+  if (channelLoadingOverlay) {
+    const loadingText = channelLoadingOverlay.querySelector('.loading-text');
+    const loadingSubtext = channelLoadingOverlay.querySelector('.loading-subtext');
+
+    if (loadingText) loadingText.textContent = text;
+    if (loadingSubtext) loadingSubtext.textContent = subtext;
+
+    channelLoadingOverlay.style.display = 'flex';
+
+    // 禁用渠道选择器
+    if (channelSelect) {
+      channelSelect.disabled = true;
+    }
+
+    // 禁用刷新按钮
+    if (refreshChannelsBtn) {
+      refreshChannelsBtn.disabled = true;
+    }
+  }
+}
+
+/**
+ * 隐藏渠道加载遮罩层
+ */
+function hideChannelLoadingOverlay() {
+  if (channelLoadingOverlay) {
+    channelLoadingOverlay.style.display = 'none';
+
+    // 重新启用渠道选择器
+    if (channelSelect) {
+      channelSelect.disabled = false;
+    }
+
+    // 重新启用刷新按钮
+    if (refreshChannelsBtn) {
+      refreshChannelsBtn.disabled = false;
+    }
+  }
+}
+
+// ========================================
 // 模型选择弹窗功能
 // ========================================
 
@@ -2854,12 +2920,14 @@ async function showModelSelectionModal(channelId) {
   return new Promise(async (resolve) => {
     try {
       currentChannelId = channelId;
-      
+
       // 每次都重新获取渠道的可用模型列表，不使用缓存
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       const scriptReady = await ensureContentScript(tab.id);
       if (!scriptReady) {
         showStatus('❌ 无法连接到页面脚本，请刷新页面后重试', 'error');
+        // 确保隐藏外部加载遮罩层
+        hideChannelLoadingOverlay();
         resolve([]);
         return;
       }
@@ -2873,6 +2941,8 @@ async function showModelSelectionModal(channelId) {
       
       if (!result.success) {
         showStatus(`❌ 获取模型列表失败：${result.error}`, 'error');
+        // 确保隐藏外部加载遮罩层
+        hideChannelLoadingOverlay();
         resolve([]);
         return;
       }
@@ -2883,6 +2953,8 @@ async function showModelSelectionModal(channelId) {
       
       if (availableModels.length === 0) {
         showStatus('⚠️ 该渠道没有可用的模型', 'warning');
+        // 确保隐藏外部加载遮罩层
+        hideChannelLoadingOverlay();
         resolve([]);
         return;
       }
@@ -2912,6 +2984,8 @@ async function showModelSelectionModal(channelId) {
     } catch (error) {
       console.error('显示模型选择弹窗失败:', error);
       showStatus(`❌ 显示模型选择弹窗失败：${error.message}`, 'error');
+      // 确保隐藏外部加载遮罩层
+      hideChannelLoadingOverlay();
       resolve([]);
     }
   });
@@ -3071,9 +3145,9 @@ function renderModelSelectionList(searchTerm = '') {
   const filteredModels = availableModels.filter(model =>
     model.toLowerCase().includes(searchTerm.toLowerCase())
   );
-  
+
   modelSelectionList.innerHTML = '';
-  
+
   if (filteredModels.length === 0) {
     modelSelectionList.innerHTML = `
       <div class="empty-state">
@@ -3084,13 +3158,27 @@ function renderModelSelectionList(searchTerm = '') {
     updateModelSelectionStats();
     return;
   }
-  
+
   console.log(`🔍 渲染模型列表: ${filteredModels.length} 个模型，已选择 ${selectedModels.size} 个`);
   console.log(`🔍 已选择的模型:`, Array.from(selectedModels));
-  
+
   const fragment = document.createDocumentFragment();
-  
-  filteredModels.forEach(model => {
+
+  // 对模型进行排序：已选择的模型排在前面
+  const sortedModels = filteredModels.sort((a, b) => {
+    const aSelected = selectedModels.has(a);
+    const bSelected = selectedModels.has(b);
+
+    // 如果都选中或都未选中，按名称排序
+    if (aSelected === bSelected) {
+      return a.localeCompare(b);
+    }
+
+    // 选中的模型排在前面
+    return aSelected ? -1 : 1;
+  });
+
+  sortedModels.forEach(model => {
     const modelItem = document.createElement('div');
     modelItem.className = 'model-selection-item';
     
@@ -3193,6 +3281,8 @@ function bindModelSelectionEvents(resolve, initialSelectedModels = []) {
     modelSearchInput.value = '';
     // 修复Bug 1: 取消时返回空数组，表示用户取消了操作
     resolve([]);
+    // 隐藏渠道加载遮罩层（如果存在）
+    hideChannelLoadingOverlay();
   };
   
   // 确认按钮
@@ -3202,6 +3292,8 @@ function bindModelSelectionEvents(resolve, initialSelectedModels = []) {
     modelSelectionModal.classList.remove('show');
     modelSearchInput.value = '';
     resolve(Array.from(selectedModels));
+    // 隐藏渠道加载遮罩层（如果存在）
+    hideChannelLoadingOverlay();
   };
   
   // 重新绑定按钮事件（避免重复绑定）
