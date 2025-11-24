@@ -1186,7 +1186,7 @@
     .model-selection-item {
       display: flex;
       align-items: center;
-      padding: 8px 12px;
+      padding: 4px 8px;
       border-radius: 6px;
       cursor: pointer;
       transition: all 0.2s ease;
@@ -1215,9 +1215,143 @@
     
     .model-name {
       flex: 1;
-      font-size: 13px;
+      font-size: 17px;
       color: var(--color-text-primary);
       word-break: break-all;
+    }
+
+    /* 加载状态样式 */
+    .loading-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      color: var(--color-text-secondary);
+    }
+    
+    .loading-spinner {
+      font-size: 32px;
+      margin-bottom: 12px;
+      animation: spin 1s linear infinite;
+    }
+    
+    .loading-text {
+      font-size: 14px;
+      text-align: center;
+    }
+
+    /* 错误状态样式 */
+    .error-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 30px 20px;
+      color: var(--color-error, #dc3545);
+      text-align: center;
+    }
+    
+    .error-icon {
+      font-size: 32px;
+      margin-bottom: 12px;
+    }
+    
+    .error-text {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--color-text-primary);
+    }
+    
+    .error-details {
+      font-size: 13px;
+      color: var(--color-text-secondary);
+      margin-bottom: 24px;
+      word-break: break-all;
+      max-width: 100%;
+    }
+    
+    .error-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+    
+    .error-action-btn {
+      padding: 8px 16px;
+      border: 1px solid var(--color-separator);
+      border-radius: var(--radius-md);
+      background: var(--color-bg);
+      color: var(--color-text-primary);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .error-action-btn:hover {
+      background: var(--color-primary);
+      color: white;
+      border-color: var(--color-primary);
+    }
+
+    /* 空状态样式 */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 30px 20px;
+      color: var(--color-text-secondary);
+      text-align: center;
+    }
+    
+    .empty-state-icon {
+      font-size: 32px;
+      margin-bottom: 12px;
+      opacity: 0.7;
+    }
+    
+    .empty-state-text {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--color-text-primary);
+    }
+    
+    .empty-state-description {
+      font-size: 13px;
+      color: var(--color-text-secondary);
+      margin-bottom: 24px;
+      line-height: 1.4;
+    }
+    
+    .empty-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+    
+    .empty-action-btn {
+      padding: 8px 16px;
+      border: 1px solid var(--color-separator);
+      border-radius: var(--radius-md);
+      background: var(--color-bg);
+      color: var(--color-text-primary);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .empty-action-btn:hover {
+      background: var(--color-primary);
+      color: white;
+      border-color: var(--color-primary);
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
     }
     
     #modelSelectionList::-webkit-scrollbar {
@@ -1233,18 +1367,18 @@
       border-radius: 3px;
     }
     
-    /* 模型列表两列布局 */
+    /* 模型列表单列布局 */
     #modelSelectionList {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
       padding: 8px;
     }
     
     .model-selection-item {
       display: flex;
       align-items: center;
-      padding: 6px 8px;
+      padding: 3px 6px;
       border-radius: 6px;
       cursor: pointer;
       transition: all 0.2s ease;
@@ -1275,7 +1409,7 @@
     
     .model-name {
       flex: 1;
-      font-size: 11px;
+      font-size: 14px;
       color: var(--color-text-primary);
       line-height: 1.2;
       overflow: hidden;

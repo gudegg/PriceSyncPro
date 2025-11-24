@@ -2846,6 +2846,89 @@ async function performEnhancedSmartSync() {
 // ========================================
 
 /**
+ * 显示模型选择弹窗的加载状态
+ */
+function showModelSelectionModalLoadingState() {
+  // 设置空数据以触发加载状态显示
+  availableModels = [];
+  selectedModels.clear();
+  
+  // 显示弹窗
+  modelSelectionModal.classList.add('show');
+  
+  // 渲染加载状态
+  renderModelSelectionList();
+  
+  console.log('🔄 已显示模型选择弹窗加载状态');
+}
+
+/**
+ * 显示模型选择弹窗的错误状态
+ * @param {string} errorMessage - 错误信息
+ */
+function showModelSelectionModalErrorState(errorMessage) {
+  modelSelectionList.innerHTML = `
+    <div class="error-state">
+      <div class="error-icon">❌</div>
+      <div class="error-text">获取模型列表失败</div>
+      <div class="error-details">${errorMessage}</div>
+      <div class="error-actions">
+        <button id="retryLoadModelsBtn" class="error-action-btn">🔄 重试</button>
+        <button id="closeErrorModalBtn" class="error-action-btn">✖️ 关闭</button>
+      </div>
+    </div>
+  `;
+  
+  // 绑定重试按钮事件
+  const retryBtn = document.getElementById('retryLoadModelsBtn');
+  if (retryBtn) {
+    retryBtn.addEventListener('click', () => {
+      // 重新加载
+      modelSelectionModal.classList.remove('show');
+      showModelSelectionModal(currentChannelId).then(resolve => {
+        // 处理重试结果
+      });
+    });
+  }
+  
+  // 绑定关闭按钮事件
+  const closeBtn = document.getElementById('closeErrorModalBtn');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', () => {
+      modelSelectionModal.classList.remove('show');
+    });
+  }
+  
+  console.log('❌ 已显示模型选择弹窗错误状态:', errorMessage);
+}
+
+/**
+ * 显示模型选择弹窗的空状态
+ */
+function showModelSelectionModalEmptyState() {
+  modelSelectionList.innerHTML = `
+    <div class="empty-state">
+      <div class="empty-state-icon">📭</div>
+      <div class="empty-state-text">该渠道没有可用的模型</div>
+      <div class="empty-state-description">请检查渠道配置或尝试其他渠道</div>
+      <div class="empty-actions">
+        <button id="closeEmptyModalBtn" class="empty-action-btn">✖️ 关闭</button>
+      </div>
+    </div>
+  `;
+  
+  // 绑定关闭按钮事件
+  const closeBtn = document.getElementById('closeEmptyModalBtn');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', () => {
+      modelSelectionModal.classList.remove('show');
+    });
+  }
+  
+  console.log('📭 已显示模型选择弹窗空状态');
+}
+
+/**
  * 显示模型选择弹窗（无缓存模式）
  * @param {string} channelId - 渠道ID
  * @returns {Promise<Array<string>>} 用户选择的模型列表
@@ -2866,13 +2949,20 @@ async function showModelSelectionModal(channelId) {
       
       showStatus('📋 正在获取模型列表...', 'info');
       
+      // 立即显示弹窗并显示加载状态，让用户感受到请求过程
+      showModelSelectionModalLoadingState();
+      
       const result = await sendMessageWithRetry(tab.id, {
         action: 'fetchChannelModels',
         channelId: parseInt(channelId)
       });
       
-      if (!result.success) {
-        showStatus(`❌ 获取模型列表失败：${result.error}`, 'error');
+      // 检查是否成功：不仅检查success，还要检查response中的错误
+      if (!result.success || (result.response && result.response.error)) {
+        const errorMessage = !result.success ? result.error : result.response.error;
+        showStatus(`❌ 获取模型列表失败：${errorMessage}`, 'error');
+        // 在弹窗中显示错误状态
+        showModelSelectionModalErrorState(errorMessage);
         resolve([]);
         return;
       }
@@ -2883,6 +2973,8 @@ async function showModelSelectionModal(channelId) {
       
       if (availableModels.length === 0) {
         showStatus('⚠️ 该渠道没有可用的模型', 'warning');
+        // 在弹窗中显示空状态
+        showModelSelectionModalEmptyState();
         resolve([]);
         return;
       }
@@ -2902,9 +2994,6 @@ async function showModelSelectionModal(channelId) {
       
       // 渲染模型选择列表
       renderModelSelectionList();
-      
-      // 显示弹窗
-      modelSelectionModal.classList.add('show');
       
       // 绑定事件
       bindModelSelectionEvents(resolve, initialSelectedModels);
@@ -3068,13 +3157,38 @@ async function saveChannelModelSelection(channelId) {
  * 渲染模型选择列表
  */
 function renderModelSelectionList(searchTerm = '') {
+  // 如果availableModels还未加载，显示加载状态
+  if (!availableModels || availableModels.length === 0) {
+    modelSelectionList.innerHTML = `
+      <div class="loading-state">
+        <div class="loading-spinner">⏳</div>
+        <div class="loading-text">正在获取模型列表...</div>
+      </div>
+    `;
+    updateModelSelectionStats();
+    return;
+  }
+  
   const filteredModels = availableModels.filter(model =>
     model.toLowerCase().includes(searchTerm.toLowerCase())
   );
   
+  // 重新排序：已选择的模型排在前面
+  const sortedModels = filteredModels.sort((a, b) => {
+    const aSelected = selectedModels.has(a);
+    const bSelected = selectedModels.has(b);
+    
+    // 如果a被选中而b没有选中，a排在前面
+    if (aSelected && !bSelected) return -1;
+    // 如果b被选中而a没有选中，b排在前面
+    if (!aSelected && bSelected) return 1;
+    // 如果都选中或都没选中，保持原有顺序
+    return 0;
+  });
+  
   modelSelectionList.innerHTML = '';
   
-  if (filteredModels.length === 0) {
+  if (sortedModels.length === 0) {
     modelSelectionList.innerHTML = `
       <div class="empty-state">
         <div class="empty-state-icon">🔍</div>
@@ -3085,12 +3199,12 @@ function renderModelSelectionList(searchTerm = '') {
     return;
   }
   
-  console.log(`🔍 渲染模型列表: ${filteredModels.length} 个模型，已选择 ${selectedModels.size} 个`);
+  console.log(`🔍 渲染模型列表: ${sortedModels.length} 个模型，已选择 ${selectedModels.size} 个`);
   console.log(`🔍 已选择的模型:`, Array.from(selectedModels));
   
   const fragment = document.createDocumentFragment();
   
-  filteredModels.forEach(model => {
+  sortedModels.forEach(model => {
     const modelItem = document.createElement('div');
     modelItem.className = 'model-selection-item';
     
