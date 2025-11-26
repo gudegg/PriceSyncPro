@@ -1233,29 +1233,29 @@
       border-radius: 3px;
     }
     
-    /* 模型列表两列布局 */
+    /* 模型列表单列布局 - 紧凑版 */
     #modelSelectionList {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 6px;
-      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 4px;
     }
     
     .model-selection-item {
       display: flex;
       align-items: center;
-      padding: 6px 8px;
-      border-radius: 6px;
+      padding: 4px 6px;
+      border-radius: 4px;
       cursor: pointer;
       transition: all 0.2s ease;
       border: 1px solid transparent;
-      min-height: 32px;
+      min-height: 24px;
       word-break: break-all;
     }
     
     .model-selection-item:hover {
       background: rgba(0, 122, 255, 0.04);
-      border-color: rgba(0, 122, 255, 0.1);
+      border-color: rgba(0, 122, 255, 0.08);
     }
     
     .model-selection-item.selected {
@@ -1265,7 +1265,7 @@
     
     .model-checkbox {
       margin-right: 4px;
-      transform: scale(0.9);
+      transform: scale(0.8);
       flex-shrink: 0;
     }
     
@@ -1275,15 +1275,46 @@
     
     .model-name {
       flex: 1;
-      font-size: 11px;
+      font-size: 13px;
       color: var(--color-text-primary);
-      line-height: 1.2;
+      line-height: 1.3;
       overflow: hidden;
       text-overflow: ellipsis;
       display: -webkit-box;
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
       padding-right: 2px;
+      font-weight: 500;
+    }
+    /* 模型选择弹窗加载和错误状态 */
+    .loading-state, .error-state, .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      text-align: center;
+    }
+    
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+      opacity: 0.5;
+    }
+    
+    .empty-state-text {
+      font-size: 14px;
+      color: var(--color-text-secondary);
+      line-height: 1.5;
+    }
+    
+    .model-selection-header {
+      margin-bottom: 8px;
+    }
+    
+    /* 添加旋转动画 */
+    @keyframes spin {
+      to { transform: rotate(360deg); }
     }
   </style>
 </head>

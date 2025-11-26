@@ -1565,8 +1565,27 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             headers: headers,
             credentials: 'include'
           });
-          
+
           if (!modelsResponse.ok) {
+            // 特别处理404错误和其他常见错误
+            if (modelsResponse.status === 404) {
+              console.warn(`⚠️ 模型列表接口返回404，可能是渠道不支持或接口不存在`);
+              // 返回空数组而不是抛出错误
+              sendResponse({
+                success: true,
+                models: [],
+                channelId: channelId,
+                warning: '渠道不支持模型列表获取'
+              });
+              return;
+            } else if (modelsResponse.status === 401 || modelsResponse.status === 403) {
+              console.warn(`⚠️ 模型列表接口认证失败 (HTTP ${modelsResponse.status})`);
+              sendResponse({
+                success: false,
+                error: `认证失败，请检查登录状态 (HTTP ${modelsResponse.status})`
+              });
+              return;
+            }
             throw new Error(`获取模型列表失败 (HTTP ${modelsResponse.status})`);
           }
           
