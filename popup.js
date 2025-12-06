@@ -34,86 +34,18 @@ document.addEventListener('keydown', (e) => {
       modelSearchInput.value = '';
     }
   }
-  
-  // Ctrl+Enter 或 Cmd+Enter：智能同步
-  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-    e.preventDefault();
-    if (!smartSyncBtn.disabled) {
-      smartSyncBtn.click();
-    }
-  }
-  
 });
 
 // DOM 元素
-const smartSyncBtn = document.getElementById('smartSyncBtn');
-const smartSyncBtnText = document.getElementById('smartSyncBtnText');
 const syncModelsOnlyBtn = document.getElementById('syncModelsOnlyBtn');
-const batchUpdateBtn = document.getElementById('batchUpdateBtn');
-const syncModeHint = document.getElementById('syncModeHint');
-const syncModeText = document.getElementById('syncModeText');
 
 // 快速同步模式的URL相关元素
 const upstreamBaseUrlInput = document.getElementById('upstreamBaseUrl');
 const apiPathSelect = document.getElementById('apiPathSelect');
-const apiPathCustomInput = document.getElementById('apiPathCustom');
 const modelPrefixInput = document.getElementById('modelPrefix');
-
-// 自定义API路径输入框显示/隐藏逻辑
-if (apiPathSelect && apiPathCustomInput) {
-  apiPathSelect.addEventListener('change', function() {
-    if (this.value === 'custom') {
-      apiPathCustomInput.style.display = 'block';
-    } else {
-      apiPathCustomInput.style.display = 'none';
-    }
-  });
-}
 const tokenGroupSelect = document.getElementById('tokenGroupSelect');
 const channelSelect = document.getElementById('channelSelect');
 
-// 模式切换相关元素
-const quickSyncModeBtn = document.getElementById('quickSyncModeBtn');
-const autoConfigModeBtn = document.getElementById('autoConfigModeBtn');
-const quickSyncMode = document.getElementById('quickSyncMode');
-const autoConfigMode = document.getElementById('autoConfigMode');
-
-// 自动配置模式的URL相关元素
-const upstreamBaseUrlAutoInput = document.getElementById('upstreamBaseUrlAuto');
-const apiPathSelectAuto = document.getElementById('apiPathSelectAuto');
-const apiPathCustomAutoInput = document.getElementById('apiPathCustomAuto');
-const modelPrefixAuto = document.getElementById('modelPrefixAuto');
-
-// 自动配置模式的自定义API路径输入框显示/隐藏逻辑（不再保存到缓存）
-if (apiPathSelectAuto && apiPathCustomAutoInput) {
-  apiPathSelectAuto.addEventListener('change', function() {
-    if (this.value === 'custom') {
-      apiPathCustomAutoInput.style.display = 'block';
-    } else {
-      apiPathCustomAutoInput.style.display = 'none';
-    }
-    // 不再保存API路径选择
-    // chrome.storage.local.set({ autoConfigApiPath: this.value });
-  });
-}
-
-// 保存自动配置模式的基础URL（已禁用）
-if (upstreamBaseUrlAutoInput) {
-  upstreamBaseUrlAutoInput.addEventListener('input', () => {
-    // 不再保存基础URL到本地存储
-    // chrome.storage.local.set({ autoConfigBaseUrl: upstreamBaseUrlAutoInput.value });
-  });
-}
-
-// 保存自动配置模式的自定义API路径（已禁用）
-if (apiPathCustomAutoInput) {
-  apiPathCustomAutoInput.addEventListener('input', () => {
-    // 不再保存自定义API路径到本地存储
-    // chrome.storage.local.set({ autoConfigApiPathCustom: apiPathCustomAutoInput.value });
-  });
-}
-const apiKeyInput = document.getElementById('apiKeyInput');
-const channelTagInput = document.getElementById('channelTagInput');
 
 // 向后兼容：创建虚拟的 upstreamUrlInput 对象
 const upstreamUrlInput = {
@@ -134,21 +66,6 @@ const upstreamUrlInput = {
   style: upstreamBaseUrlInput?.style || {}
 };
 
-const upstreamUrlAuto = {
-  get value() {
-    return getFullUpstreamUrlAuto();
-  },
-  set value(val) {
-    setFullUpstreamUrlAuto(val);
-  },
-  addEventListener: function(event, handler) {
-    if (upstreamBaseUrlAutoInput) upstreamBaseUrlAutoInput.addEventListener(event, handler);
-    if (apiPathSelectAuto) apiPathSelectAuto.addEventListener(event, handler);
-  }
-};
-
-// 当前模式状态
-let currentMode = 'quick'; // 'quick' 或 'auto'
 
 // ========================================
 // URL和前缀处理辅助函数
@@ -166,15 +83,6 @@ function getFullUpstreamUrl() {
   if (!baseUrl) return '';
   
   const apiPath = apiPathSelect?.value || 'api/pricing';
-  
-  // 如果选择了自定义路径
-  if (apiPath === 'custom') {
-    const customPath = apiPathCustomInput?.value.trim() || '';
-    if (!customPath) return baseUrl;
-    // 确保路径不以 / 开头（会自动添加）
-    const cleanPath = customPath.replace(/^\/+/, '');
-    return `${baseUrl}/${cleanPath}`;
-  }
   
   // 使用预设路径
   return `${baseUrl}/${apiPath}`;
@@ -197,17 +105,8 @@ function setFullUpstreamUrl(fullUrl) {
     // 尝试匹配预设路径
     if (path === 'api/pricing') {
       apiPathSelect.value = 'api/pricing';
-      if (apiPathCustomInput) apiPathCustomInput.style.display = 'none';
     } else if (path === 'api/available_model') {
       apiPathSelect.value = 'api/available_model';
-      if (apiPathCustomInput) apiPathCustomInput.style.display = 'none';
-    } else if (path) {
-      // 自定义路径
-      apiPathSelect.value = 'custom';
-      if (apiPathCustomInput) {
-        apiPathCustomInput.value = path;
-        apiPathCustomInput.style.display = 'block';
-      }
     }
   } catch (e) {
     // 如果不是有效的URL，直接设置到基础URL
@@ -215,61 +114,6 @@ function setFullUpstreamUrl(fullUrl) {
   }
 }
 
-/**
- * 获取完整的上游URL（自动配置模式）
- * @returns {string} 完整的URL
- */
-function getFullUpstreamUrlAuto() {
-  if (!upstreamBaseUrlAutoInput) return '';
-  
-  // 自动去除尾部斜杠，提升用户体验
-  const baseUrl = upstreamBaseUrlAutoInput.value.trim().replace(/\/+$/, '');
-  if (!baseUrl) return '';
-  
-  const apiPath = apiPathSelectAuto?.value || 'api/pricing';
-  
-  // 如果选择了自定义路径
-  if (apiPath === 'custom') {
-    const customPath = apiPathCustomAutoInput?.value.trim() || '';
-    if (!customPath) return baseUrl;
-    const cleanPath = customPath.replace(/^\/+/, '');
-    return `${baseUrl}/${cleanPath}`;
-  }
-  
-  return `${baseUrl}/${apiPath}`;
-}
-
-/**
- * 设置完整的上游URL（自动配置模式）
- * @param {string} fullUrl - 完整的URL
- */
-function setFullUpstreamUrlAuto(fullUrl) {
-  if (!upstreamBaseUrlAutoInput || !fullUrl) return;
-  
-  try {
-    const urlObj = new URL(fullUrl);
-    const baseUrl = `${urlObj.protocol}//${urlObj.host}`;
-    const path = urlObj.pathname.replace(/^\//, '');
-    
-    upstreamBaseUrlAutoInput.value = baseUrl;
-    
-    if (path === 'api/pricing') {
-      apiPathSelectAuto.value = 'api/pricing';
-      if (apiPathCustomAutoInput) apiPathCustomAutoInput.style.display = 'none';
-    } else if (path === 'api/available_model') {
-      apiPathSelectAuto.value = 'api/available_model';
-      if (apiPathCustomAutoInput) apiPathCustomAutoInput.style.display = 'none';
-    } else if (path) {
-      apiPathSelectAuto.value = 'custom';
-      if (apiPathCustomAutoInput) {
-        apiPathCustomAutoInput.value = path;
-        apiPathCustomAutoInput.style.display = 'block';
-      }
-    }
-  } catch (e) {
-    upstreamBaseUrlAutoInput.value = fullUrl;
-  }
-}
 
 /**
  * 获取规范化的渠道前缀（自动添加末尾的 /）
@@ -292,109 +136,31 @@ function setPrefix(prefix) {
   modelPrefixInput.value = prefix.replace(/\/+$/, '');
 }
 
-// ========================================
-// 模式切换逻辑
-// ========================================
-function switchMode(mode) {
-  currentMode = mode;
-  
-  if (mode === 'quick') {
-    // 切换到快速同步模式
-    quickSyncModeBtn.classList.add('active');
-    autoConfigModeBtn.classList.remove('active');
-    quickSyncMode.classList.add('active');
-    autoConfigMode.classList.remove('active');
-    
-    // 更新按钮文本
-    smartSyncBtnText.textContent = '开始同步';
-    
-    // 显示批量更新按钮
-    if (batchUpdateBtn) {
-      batchUpdateBtn.style.display = '';
-    }
-  } else {
-    // 切换到自动配置模式
-    quickSyncModeBtn.classList.remove('active');
-    autoConfigModeBtn.classList.add('active');
-    quickSyncMode.classList.remove('active');
-    autoConfigMode.classList.add('active');
-    
-    // 更新按钮文本
-    smartSyncBtnText.textContent = '创建并同步';
-    
-    // 隐藏批量更新按钮（自动配置模式不需要）
-    if (batchUpdateBtn) {
-      batchUpdateBtn.style.display = 'none';
-    }
-    
-    // 重置自动配置模式的输入框状态（移除只读限制）
-    if (upstreamBaseUrlAutoInput) {
-      upstreamBaseUrlAutoInput.readOnly = false;
-      upstreamBaseUrlAutoInput.style.background = '';
-      upstreamBaseUrlAutoInput.style.cursor = '';
-    }
-    if (modelPrefixAuto) {
-      modelPrefixAuto.readOnly = false;
-      modelPrefixAuto.style.background = '';
-      modelPrefixAuto.style.cursor = '';
-    }
-  }
-  
-  // 重新验证输入
-  updateSmartSyncButton();
-}
+// 触发字段高亮动画的辅助函数
+function triggerFieldHighlight(fieldElement) {
+  if (!fieldElement) return;
 
-// 模式切换按钮事件监听
-if (quickSyncModeBtn) {
-  quickSyncModeBtn.addEventListener('click', () => switchMode('quick'));
-}
+  // 移除之前的动画类（如果存在）
+  fieldElement.classList.remove('auto-filled');
 
-if (autoConfigModeBtn) {
-  autoConfigModeBtn.addEventListener('click', () => switchMode('auto'));
-}
+  // 强制重绘以重新触发动画
+  void fieldElement.offsetWidth;
 
-// 自动配置模式字段同步到快速模式（不再保存到缓存）
-if (upstreamUrlAuto) {
-  upstreamUrlAuto.addEventListener('input', () => {
-    upstreamUrlInput.value = upstreamUrlAuto.value;
-    // 不再保存自动配置模式的URL
-    // chrome.storage.local.set({ autoConfigUrl: upstreamUrlAuto.value });
-    updateSmartSyncButton();
-  });
-}
+  // 添加动画类
+  fieldElement.classList.add('auto-filled');
 
-if (modelPrefixAuto) {
-  modelPrefixAuto.addEventListener('input', () => {
-    modelPrefixInput.value = modelPrefixAuto.value;
-    // 不再保存自动配置模式的前缀
-    // chrome.storage.local.set({ autoConfigPrefix: modelPrefixAuto.value });
-    updateSmartSyncButton();
-  });
+  // 动画结束后移除类，以便下次可以再次触发
+  setTimeout(() => {
+    fieldElement.classList.remove('auto-filled');
+  }, 600); // 与动画时长一致
 }
-
-// 保存API密钥输入（已禁用）
-if (apiKeyInput) {
-  apiKeyInput.addEventListener('input', () => {
-    // 不再保存API密钥到本地存储
-    // chrome.storage.local.set({ autoConfigApiKey: apiKeyInput.value });
-  });
-}
-
-// 保存渠道标签输入（已禁用）
-if (channelTagInput) {
-  channelTagInput.addEventListener('input', () => {
-    // 不再保存渠道标签到本地存储
-    // chrome.storage.local.set({ autoConfigChannelTag: channelTagInput.value });
-  });
-}
-
-// 快速模式字段同步到自动配置模式（这部分已经在上面的事件监听中处理）
 const refreshChannelsBtn = document.getElementById('refreshChannelsBtn');
 const channelHint = document.getElementById('channelHint');
 const advancedToggle = document.getElementById('advancedToggle');
 const advancedToggleIcon = document.getElementById('advancedToggleIcon');
 const advancedOptions = document.getElementById('advancedOptions');
 const tableSearchInput = document.getElementById('tableSearchInput');
+const tableSearchClearBtn = document.getElementById('tableSearchClearBtn');
 const prefixSuggestions = document.getElementById('prefixSuggestions');
 const prefixSuggestionButtons = document.getElementById('prefixSuggestionButtons');
 
@@ -407,9 +173,7 @@ const statusDiv = document.getElementById('status');
 const resultsSection = document.getElementById('resultsSection');
 const resultsStats = document.getElementById('resultsStats');
 const resultsTableBody = document.getElementById('resultsTableBody');
-const infoBanner = document.getElementById('infoBanner');
-const infoBannerText = document.getElementById('infoBannerText');
-const closeBannerBtn = document.getElementById('closeBannerBtn');
+const loginStatus = document.getElementById('loginStatus');
 
 // 右上角功能按钮
 const refreshBtn = document.querySelector('.header-actions button[title="刷新"]');
@@ -441,7 +205,9 @@ const listModalCancelBtn = document.getElementById('listModalCancelBtn');
 // 模型选择弹窗元素
 const modelSelectionModal = document.getElementById('modelSelectionModal');
 const modelSearchInput = document.getElementById('modelSearchInput');
+const modelSearchClearBtn = document.getElementById('modelSearchClearBtn');
 const selectAllModelsBtn = document.getElementById('selectAllModelsBtn');
+const invertSelectionBtn = document.getElementById('invertSelectionBtn');
 const deselectAllModelsBtn = document.getElementById('deselectAllModelsBtn');
 const modelSelectionStats = document.getElementById('modelSelectionStats');
 const modelSelectionList = document.getElementById('modelSelectionList');
@@ -454,6 +220,7 @@ let multiFieldModal, editNameField, editUrlField, editPrefixField;
 // 模型选择相关全局变量（不再使用缓存）
 let availableModels = []; // 当前渠道的可用模型列表
 let selectedModels = new Set(); // 用户选择的模型
+let initialPreselectedModels = new Set(); // 初始从渠道预选的模型（用于置顶显示）
 let currentChannelId = ''; // 当前渠道ID
 let currentChannelSelectedModels = []; // 当前渠道选择的模型列表（用于同步）
 
@@ -785,73 +552,38 @@ async function checkLoginStatus() {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const url = tab.url;
-    
-    // 显示 Banner（如果之前被隐藏）
-    infoBanner.classList.remove('hidden');
-    infoBanner.style.opacity = '1';
-    
-    // 检查是否在 New API 页面
+
+    loginStatus.textContent = '正在检测...';
+    loginStatus.className = '';
+
     if (!url || (!url.includes('localhost') && !url.includes('127.0.0.1') && !url.match(/https?:\/\/[^\/]+/))) {
-      infoBannerText.textContent = '⚠️ 请在 New API 后台页面打开此插件';
-      infoBanner.style.background = 'rgba(255, 149, 0, 0.08)';
-      infoBanner.style.color = '#FF9500';
-      closeBannerBtn.style.display = 'flex';
+      loginStatus.textContent = '请在New API后台使用';
+      loginStatus.className = 'status-error';
       return;
     }
-    
-    // 尝试获取 Cookie
+
     chrome.runtime.sendMessage({
       action: 'getCookies',
       url: url
     }, (response) => {
       if (response && response.success && response.newApiUser) {
-        // ✅ 已登录 - 显示成功状态
-        infoBannerText.innerHTML = `✅ 已连接 | 用户: ${response.newApiUser.username || '未知'}`;
-        infoBanner.style.background = 'rgba(52, 199, 89, 0.08)';
-        infoBanner.style.color = '#34C759';
-        
-        // 3秒后自动淡出并隐藏
-        setTimeout(() => {
-          infoBanner.style.transition = 'opacity 0.4s ease';
-          infoBanner.style.opacity = '0';
-          setTimeout(() => {
-            infoBanner.classList.add('hidden');
-          }, 400);
-        }, 3000);
+        loginStatus.innerHTML = `已连接: <strong>${response.newApiUser.username || '未知'}</strong>`;
+        loginStatus.className = 'status-success';
       } else {
-        // ❌ 未登录 - 显示明确的操作指引
-        infoBannerText.innerHTML = '⚠️ 未检测到登录状态 | 请登录后点击右上角 ⟳ 刷新';
-        infoBanner.style.background = 'rgba(255, 149, 0, 0.08)';
-        infoBanner.style.color = '#FF9500';
-        closeBannerBtn.style.display = 'flex';
+        loginStatus.textContent = '未登录, 请登录后刷新';
+        loginStatus.className = 'status-error';
       }
     });
   } catch (error) {
     console.error('检测登录状态失败:', error);
-    infoBannerText.textContent = 'ℹ️ 请在 New API 后台页面使用此插件';
-    infoBanner.style.background = 'rgba(0, 122, 255, 0.08)';
-    infoBanner.style.color = '#007AFF';
-    closeBannerBtn.style.display = 'flex';
+    loginStatus.textContent = '检测失败';
+    loginStatus.className = 'status-error';
   }
-}
-
-// Banner 关闭按钮事件
-if (closeBannerBtn) {
-  closeBannerBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    infoBanner.style.transition = 'opacity 0.3s ease';
-    infoBanner.style.opacity = '0';
-    setTimeout(() => {
-      infoBanner.classList.add('hidden');
-    }, 300);
-  });
 }
 
 
 // 监听输入框变化
 upstreamUrlInput.addEventListener('input', () => {
-  updateSmartSyncButton();
-  showPrefixSuggestions();
   // 不再自动匹配渠道，确保用户主动选择
   /*
   clearTimeout(window._matchTimeout);
@@ -876,10 +608,15 @@ if (tableSearchInput) {
   tableSearchInput.addEventListener('input', (e) => {
     const searchTerm = e.target.value.toLowerCase().trim();
     const rows = resultsTableBody.querySelectorAll('tr');
-    
+
+    // 显示/隐藏清除按钮
+    if (tableSearchClearBtn) {
+      tableSearchClearBtn.style.display = searchTerm ? 'flex' : 'none';
+    }
+
     let visibleCount = 0;
     let totalCount = rows.length;
-    
+
     rows.forEach(row => {
       const modelName = row.querySelector('.model-name')?.textContent.toLowerCase() || '';
       if (modelName.includes(searchTerm)) {
@@ -889,7 +626,7 @@ if (tableSearchInput) {
         row.style.display = 'none';
       }
     });
-    
+
     // 更新统计信息
     if (searchTerm) {
       resultsStats.textContent = `找到 ${visibleCount} 个匹配项`;
@@ -906,115 +643,15 @@ if (tableSearchInput) {
   });
 }
 
-
-// 更新智能同步按钮状态
-function updateSmartSyncButton() {
-  const url = getFullUpstreamUrl();
-  const channelId = channelSelect.value.trim();
-  
-  if (!url) {
-    smartSyncBtn.disabled = true;
-    syncModelsOnlyBtn.disabled = true;
-    // 根据当前模式设置默认文本
-    smartSyncBtnText.textContent = currentMode === 'auto' ? '创建并同步' : '开始同步';
-    syncModeHint.style.display = 'none';
-    return;
-  }
-  
-  smartSyncBtn.disabled = false;
-  
-  // 快速同步模式：根据是否选择渠道显示不同提示
-  if (currentMode === 'quick') {
-    if (channelId) {
-      smartSyncBtnText.textContent = '完整同步（模型+价格）';
-      syncModeText.textContent = '将同步模型列表并更新价格';
-      syncModeHint.style.display = 'block';
-      // 选择渠道时启用"仅同步模型"按钮
-      syncModelsOnlyBtn.disabled = false;
-    } else {
-      smartSyncBtnText.textContent = '快速更新（仅价格）';
-      syncModeText.textContent = '仅更新价格配置';
-      syncModeHint.style.display = 'block';
-      // 未选择渠道时禁用"仅同步模型"按钮
-      syncModelsOnlyBtn.disabled = true;
-    }
-  } else {
-    // 自动配置模式：始终显示"创建并同步"
-    smartSyncBtnText.textContent = '创建并同步';
-    syncModeText.textContent = '将自动创建渠道并同步价格';
-    syncModeHint.style.display = 'block';
-    // 自动配置模式下禁用"仅同步模型"按钮
-    syncModelsOnlyBtn.disabled = true;
-  }
+// 表格搜索清除按钮
+if (tableSearchClearBtn) {
+  tableSearchClearBtn.addEventListener('click', () => {
+    tableSearchInput.value = '';
+    tableSearchInput.dispatchEvent(new Event('input')); // 触发input事件
+    tableSearchInput.focus();
+  });
 }
 
-// 智能同步按钮点击事件（增强版，集成自动配置）
-smartSyncBtn.addEventListener('click', async () => {
-  // ✅ 防止重复点击
-  if (smartSyncBtn.disabled) {
-    return;
-  }
-  
-  // ✅ 修复：根据当前模式决定执行哪个功能
-  if (currentMode === 'auto') {
-    // 自动配置模式：创建渠道、供货商、模型，然后自动同步价格
-    smartSyncBtn.disabled = true;
-    const originalButtonHTML = smartSyncBtn.innerHTML;
-    smartSyncBtn.innerHTML = '<span class="spinner"></span>自动配置中...';
-    
-    try {
-      // 步骤1: 创建渠道、供货商、模型
-      const autoConfigResult = await performAutoConfiguration();
-      
-      if (!autoConfigResult.success) {
-        return;
-      }
-      
-      // 步骤2: 等待渠道列表刷新
-      showStatus('⏳ 正在刷新渠道列表...', 'info');
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      await loadChannelList();
-      
-      // 步骤3: 不再自动选择刚创建的渠道，确保用户主动选择
-      const createdChannelName = autoConfigResult.channelName;
-      const matchedChannel = channelsList.find(ch => ch.name === createdChannelName);
-      
-      if (matchedChannel) {
-        // 不自动选择渠道，只显示创建成功的信息
-        // channelSelect.value = matchedChannel.id;
-        // chrome.storage.local.set({ channelId: matchedChannel.id });
-        showStatus(`✅ 渠道创建成功: ${createdChannelName}，请手动选择该渠道`, 'success');
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
-      
-      // 步骤4: 自动执行完整同步（模型列表 + 价格），跳过确认对话框
-      smartSyncBtn.innerHTML = '<span class="spinner"></span>同步模型和价格中...';
-      // 自动配置完成后执行完整同步（使用已保存到快速模式的前缀）
-      // 注意：自动配置模式下不使用自定义模型选择，同步所有模型
-      currentChannelSelectedModels = []; // 清空自定义选择，同步所有模型
-      await performCompleteSyncLogic(true);
-      
-    } catch (error) {
-      showStatus(`❌ 自动配置失败：${error.message}`, 'error');
-    } finally {
-      // ✅ 强制恢复按钮状态
-      smartSyncBtn.disabled = false;
-      // 恢复按钮的原始 HTML，而不是调用 updateSmartSyncButton，
-      // 因为后者会设置错误的文本，并且无法恢复按钮的图标和原始状态。
-      smartSyncBtn.innerHTML = originalButtonHTML;
-    }
-    
-  } else {
-    // 快速同步模式：根据是否选择渠道决定同步模式
-    const channelId = channelSelect.value.trim();
-    
-    if (channelId) {
-      await performCompleteSyncLogic();
-    } else {
-      await performQuickUpdateLogic();
-    }
-  }
-});
 
 // ========================================
 // 仅同步模型按钮
@@ -1025,191 +662,10 @@ if (syncModelsOnlyBtn) {
   });
 }
 
-// ========================================
-// 批量更新所有渠道按钮
-// ========================================
-if (batchUpdateBtn) {
-  batchUpdateBtn.addEventListener('click', async () => {
-    await performBatchUpdateAllChannels();
-  });
-}
-
-/**
- * 批量更新所有渠道的价格配置
- * 遍历所有渠道，使用其base_url自动更新价格
- */
-async function performBatchUpdateAllChannels() {
-  // 确认操作
-  const confirmed = await showConfirmDialog({
-    title: '🔄 批量更新所有渠道',
-    message: '将自动获取所有渠道的URL并更新其价格配置\n\n这可能需要一些时间，确定继续吗？',
-    info: [
-      { label: '渠道数量', value: `${channelsList.length} 个` },
-      { label: '预计耗时', value: `约 ${Math.ceil(channelsList.length * 2)} 秒` }
-    ],
-    confirmText: '开始批量更新',
-    cancelText: '取消'
-  });
-  
-  if (!confirmed) {
-    return;
-  }
-  
-  // 禁用按钮
-  batchUpdateBtn.disabled = true;
-  const originalHTML = batchUpdateBtn.innerHTML;
-  batchUpdateBtn.innerHTML = '<span class="spinner"></span>批量更新中...';
-  
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
-    // 确保 content script 已加载
-    const scriptReady = await ensureContentScript(tab.id);
-    if (!scriptReady) {
-      showStatus('❌ 无法连接到页面脚本，请刷新页面后重试', 'error');
-      return;
-    }
-    
-    // 如果渠道列表为空，先加载
-    if (channelsList.length === 0) {
-      showStatus('📋 正在加载渠道列表...', 'info');
-      await loadChannelList();
-      
-      if (channelsList.length === 0) {
-        showStatus('⚠️ 没有找到可用的渠道', 'error');
-        return;
-      }
-    }
-    
-    showStatus(`🚀 开始批量更新 ${channelsList.length} 个渠道...`, 'info');
-    showProgress(0, '准备中...');
-    
-    let successCount = 0;
-    let failedCount = 0;
-    const failedChannels = [];
-    
-    // 遍历所有渠道
-    for (let i = 0; i < channelsList.length; i++) {
-      const channel = channelsList[i];
-      const progress = Math.round(((i + 1) / channelsList.length) * 100);
-      
-      showProgress(progress, `处理 ${i + 1}/${channelsList.length}: ${channel.name}`);
-      showStatus(`🔄 [${i + 1}/${channelsList.length}] 正在更新渠道: ${channel.name}`, 'info');
-      
-      try {
-        if (!channel.baseUrl) {
-          console.warn(`渠道 ${channel.name} 没有 base_url，跳过`);
-          failedCount++;
-          failedChannels.push({ name: channel.name, reason: '缺少 base_url' });
-          continue;
-        }
-        
-        // 提取渠道前缀
-        const prefix = channel.name.endsWith('/') ? channel.name : channel.name + '/';
-        
-        // 智能尝试两种API路径
-        const apiPaths = [
-          { path: '/api/pricing', name: 'New API' },
-          { path: '/api/available_model', name: 'One Hub' }
-        ];
-        let analyzeResult = null;
-        let usedPath = null;
-        const attemptErrors = [];
-        
-        for (const apiConfig of apiPaths) {
-          const upstreamUrl = `${channel.baseUrl}${apiConfig.path}`;
-          
-          const result = await sendMessageWithRetry(tab.id, {
-            action: 'analyzePricing',
-            upstreamUrl: upstreamUrl
-          });
-          
-          if (result.success && result.response.success) {
-            analyzeResult = result;
-            usedPath = apiConfig.path;
-            break;
-          } else {
-            // 记录失败原因
-            const error = result.error || result.response?.error || '未知错误';
-            attemptErrors.push(`${apiConfig.name}(${apiConfig.path}): ${error}`);
-          }
-        }
-        
-        if (!analyzeResult) {
-          failedCount++;
-          const detailedReason = attemptErrors.join(' | ');
-          failedChannels.push({ name: channel.name, reason: detailedReason });
-          continue;
-        }
-        
-        const results = analyzeResult.response.results;
-        const apiUrl = analyzeResult.response.apiUrl;
-        
-        // 步骤2: 同步到后台
-        const syncResult = await sendMessageWithRetry(tab.id, {
-          action: 'syncToBackend',
-          results: results,
-          apiUrl: apiUrl,
-          prefix: prefix
-        });
-        
-        if (!syncResult.success || !syncResult.response.success) {
-          const error = syncResult.error || syncResult.response?.error || '未知错误';
-          console.error(`渠道 ${channel.name} 同步失败:`, error);
-          failedCount++;
-          failedChannels.push({ name: channel.name, reason: error });
-          continue;
-        }
-        
-        successCount++;
-        console.log(`✅ 渠道 ${channel.name} 更新成功`);
-        
-        // 稍微延迟，避免请求过快
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
-      } catch (error) {
-        console.error(`处理渠道 ${channel.name} 时出错:`, error);
-        failedCount++;
-        failedChannels.push({ name: channel.name, reason: error.message });
-      }
-    }
-    
-    // 显示最终结果
-    showProgress(100, '✅ 批量更新完成');
-    
-    let resultMsg = `🎉 批量更新完成！\n\n`;
-    resultMsg += `✅ 成功: ${successCount} 个渠道\n`;
-    
-    if (failedCount > 0) {
-      resultMsg += `❌ 失败: ${failedCount} 个渠道\n\n`;
-      resultMsg += `失败的渠道：\n`;
-      failedChannels.forEach(ch => {
-        resultMsg += `• ${ch.name}: ${ch.reason}\n`;
-      });
-    }
-    
-    showStatus(resultMsg, successCount > 0 ? 'success' : 'error');
-    
-    // 立即隐藏进度条，避免与状态消息重叠显示
-    hideProgress();
-    
-  } catch (error) {
-    showStatus(`❌ 批量更新失败：${error.message}`, 'error');
-    hideProgress();
-  } finally {
-    // 恢复按钮
-    batchUpdateBtn.disabled = false;
-    batchUpdateBtn.innerHTML = originalHTML;
-  }
-}
-
 // 仅同步模型逻辑（不同步价格）
 async function performModelsOnlySyncLogic() {
   const upstreamUrl = getFullUpstreamUrl();
-  // ✅ 修复：根据当前模式获取正确的前缀
-  const prefix = currentMode === 'auto'
-    ? (modelPrefixAuto?.value.trim() ? (modelPrefixAuto.value.trim().endsWith('/') ? modelPrefixAuto.value.trim() : modelPrefixAuto.value.trim() + '/') : '')
-    : getNormalizedPrefix();
+  const prefix = getNormalizedPrefix();
   const channelId = channelSelect.value.trim();
   
   if (!channelId) {
@@ -1333,291 +789,6 @@ async function performModelsOnlySyncLogic() {
   }
 }
 
-// 快速更新逻辑（仅价格）
-async function performQuickUpdateLogic() {
-  const upstreamUrl = getFullUpstreamUrl();
-  const prefix = getNormalizedPrefix();
-  
-  if (!upstreamUrl) {
-    showStatus('⚠️ 请先输入上游定价 URL', 'error');
-    return;
-  }
-  
-  // ✅ 防止重复执行
-  if (smartSyncBtn.disabled) {
-    return;
-  }
-  
-  saveConfig();
-  
-  smartSyncBtn.disabled = true;
-  smartSyncBtn.innerHTML = '<span class="spinner"></span>快速更新中...';
-  
-  try {
-    showStatus('⚡ 正在获取上游定价数据...', 'info');
-    
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
-    // 确保 content script 已加载
-    const scriptReady = await ensureContentScript(tab.id);
-    if (!scriptReady) {
-      showStatus(
-        '❌ 无法连接到页面脚本\n\n' +
-        '💡 解决方法：\n' +
-        '1. 刷新当前页面（F5）\n' +
-        '2. 重新打开此插件',
-        'error'
-      );
-      return;
-    }
-    
-    // 步骤1: 分析价格
-    const analyzeResult = await sendMessageWithRetry(tab.id, {
-      action: 'analyzePricing',
-      upstreamUrl: upstreamUrl
-    });
-    
-    if (!analyzeResult.success) {
-      showStatus(`❌ 分析失败：${analyzeResult.error}`, 'error');
-      return;
-    }
-    
-    const analyzeResponse = analyzeResult.response;
-    
-    if (!analyzeResponse.success) {
-      showStatus(`❌ 分析失败：${analyzeResponse.error}`, 'error');
-      return;
-    }
-    
-    currentResults = analyzeResponse.results;
-    currentApiUrl = analyzeResponse.apiUrl;
-    
-    // 渲染结果表格
-    renderResultsTable(analyzeResponse.results, prefix);
-    
-    showStatus('⚡ 分析完成，正在同步到后台...', 'info');
-    
-    // 步骤2: 自动同步到后台
-    const syncResult = await sendMessageWithRetry(tab.id, {
-      action: 'syncToBackend',
-      results: currentResults,
-      apiUrl: currentApiUrl,
-      prefix: prefix
-    });
-    
-    if (!syncResult.success) {
-      showStatus(`❌ 同步失败：${syncResult.error}`, 'error');
-      return;
-    }
-    
-    const syncResponse = syncResult.response;
-    
-    if (syncResponse.success) {
-      let statusMsg = `✅ 快速更新成功！\n\n` +
-        `📊 分析了 ${analyzeResponse.results.length} 个模型\n` +
-        `🚀 同步统计：\n` +
-        `• ModelPrice: ${syncResponse.stats.modelPriceCount} 个\n` +
-        `• ModelRatio: ${syncResponse.stats.modelRatioCount} 个\n` +
-        `• CompletionRatio: ${syncResponse.stats.completionRatioCount} 个`;
-      
-      showStatus(statusMsg, 'success');
-    } else {
-      showStatus(`❌ 同步失败：${syncResponse.error}`, 'error');
-    }
-    
-  } catch (error) {
-    showStatus(`❌ 错误：${error.message}`, 'error');
-  } finally {
-    smartSyncBtn.disabled = false;
-    updateSmartSyncButton();
-  }
-}
-
-// 完整同步逻辑（模型+价格）
-async function performCompleteSyncLogic(skipConfirmation = false) {
-  const upstreamUrl = getFullUpstreamUrl();
-  // ✅ 修复：根据当前模式获取正确的前缀
-  const prefix = currentMode === 'auto'
-    ? (modelPrefixAuto?.value.trim() ? (modelPrefixAuto.value.trim().endsWith('/') ? modelPrefixAuto.value.trim() : modelPrefixAuto.value.trim() + '/') : '')
-    : getNormalizedPrefix();
-  const channelId = channelSelect.value.trim();
-  
-  if (!upstreamUrl) {
-    showStatus('⚠️ 请先输入上游定价 URL', 'error');
-    return;
-  }
-  
-  if (!channelId) {
-    showStatus('⚠️ 请先选择渠道', 'error');
-    channelSelect.focus();
-    return;
-  }
-  
-  // ✅ 防止重复执行（仅在非自动配置模式下检查）
-  if (currentMode !== 'auto' && smartSyncBtn.disabled) {
-    return;
-  }
-  
-  const channelIdNum = parseInt(channelId);
-  if (isNaN(channelIdNum) || channelIdNum <= 0) {
-    showStatus('❌ 渠道 ID 格式错误', 'error');
-    return;
-  }
-  
-  // 显示确认对话框（除非跳过确认）
-  if (!skipConfirmation) {
-    const confirmed = await showConfirmDialog({
-      title: '🎯 确认完整同步',
-      message: '将执行以下操作：\n1. 同步上游模型列表到渠道\n2. 分析上游价格\n3. 同步价格配置到后台',
-      info: [
-        { label: '渠道 ID', value: channelIdNum.toString() },
-        { label: '上游 URL', value: upstreamUrl.substring(0, 40) + '...' },
-        { label: '模型前缀', value: prefix || '(无前缀)' }
-      ],
-      confirmText: '开始完整同步',
-      cancelText: '取消'
-    });
-    
-    if (!confirmed) {
-      return;
-    }
-  }
-  
-  saveConfig();
-  
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
-    // 确保 content script 已加载
-    const scriptReady = await ensureContentScript(tab.id);
-    if (!scriptReady) {
-      showStatus(
-        '❌ 无法连接到页面脚本\n\n' +
-        '💡 解决方法：\n' +
-        '1. 刷新当前页面（F5）\n' +
-        '2. 重新打开此插件',
-        'error'
-      );
-      return;
-    }
-    
-    // 步骤1: 同步模型列表
-    showProgress(10, '步骤 1/3: 同步模型列表');
-    showStatus('🔄 步骤 1/3: 正在同步上游模型列表...', 'info');
-    
-    const syncModelsResult = await sendMessageWithRetry(tab.id, {
-      action: 'syncChannelModels',
-      channelId: channelIdNum,
-      prefix: prefix,
-      tokenGroup: tokenGroupSelect.value,
-      upstreamUrl: upstreamUrl,
-      customModels: currentChannelSelectedModels.length > 0 ? currentChannelSelectedModels : null
-    });
-    
-    if (!syncModelsResult.success) {
-      showStatus(`❌ 同步模型列表失败：${syncModelsResult.error}`, 'error');
-      return;
-    }
-    
-    const syncModelsResponse = syncModelsResult.response;
-    
-    if (!syncModelsResponse.success) {
-      showStatus(`❌ 同步模型列表失败：${syncModelsResponse.error}`, 'error');
-      return;
-    }
-    
-    const modelCount = syncModelsResponse.stats.totalModels;
-    const originalCount = syncModelsResponse.stats.originalModels || modelCount;
-    const customSelection = syncModelsResponse.stats.customSelection;
-    
-    let statusMessage = `✅ 步骤 1/3 完成：已同步 ${modelCount} 个模型`;
-    if (customSelection && modelCount < originalCount) {
-      statusMessage += ` (从 ${originalCount} 个中选择)`;
-    }
-    
-    showProgress(40, `步骤 1/3 完成 (${modelCount}个)`);
-    showStatus(statusMessage, 'success');
-    
-    // 步骤2: 分析价格
-    showProgress(50, '步骤 2/3: 分析价格');
-    showStatus('🔍 步骤 2/3: 正在分析上游价格...', 'info');
-    
-    const analyzeResult = await sendMessageWithRetry(tab.id, {
-      action: 'analyzePricing',
-      upstreamUrl: upstreamUrl
-    });
-    
-    if (!analyzeResult.success) {
-      showStatus(`❌ 分析价格失败：${analyzeResult.error}`, 'error');
-      return;
-    }
-    
-    const analyzeResponse = analyzeResult.response;
-    
-    if (!analyzeResponse.success) {
-      showStatus(`❌ 分析价格失败：${analyzeResponse.error}`, 'error');
-      return;
-    }
-    
-    currentResults = analyzeResponse.results;
-    currentApiUrl = analyzeResponse.apiUrl;
-    
-    // 渲染结果表格
-    renderResultsTable(analyzeResponse.results, prefix);
-    
-    showProgress(70, `步骤 2/3 完成 (${analyzeResponse.results.length}个)`);
-    showStatus(`✅ 步骤 2/3 完成：已分析 ${analyzeResponse.results.length} 个模型`, 'success');
-    
-    // 步骤3: 同步价格到后台
-    showProgress(80, '步骤 3/3: 同步价格');
-    showStatus('🚀 步骤 3/3: 正在同步价格到后台...', 'info');
-    
-    const syncPriceResult = await sendMessageWithRetry(tab.id, {
-      action: 'syncToBackend',
-      results: currentResults,
-      apiUrl: currentApiUrl,
-      prefix: prefix
-    });
-    
-    if (!syncPriceResult.success) {
-      showStatus(`❌ 同步价格失败：${syncPriceResult.error}`, 'error');
-      return;
-    }
-    
-    const syncPriceResponse = syncPriceResult.response;
-    
-    if (syncPriceResponse.success) {
-      showProgress(100, '✅ 完整同步成功');
-      
-      const modelCount = syncModelsResponse.stats.totalModels;
-      const originalCount = syncModelsResponse.stats.originalModels || modelCount;
-      const customSelection = syncModelsResponse.stats.customSelection;
-      
-      let modelInfo = `📊 步骤 1 - 模型列表：${modelCount} 个`;
-      if (customSelection && modelCount < originalCount) {
-        modelInfo += ` (从 ${originalCount} 个中选择)`;
-      }
-      
-      let statusMsg = `🎉 完整同步成功！\n\n` +
-        `${modelInfo}\n` +
-        `📊 步骤 2 - 价格分析：${analyzeResponse.results.length} 个\n` +
-        `📊 步骤 3 - 同步统计：\n` +
-        `• ModelPrice: ${syncPriceResponse.stats.modelPriceCount} 个\n` +
-        `• ModelRatio: ${syncPriceResponse.stats.modelRatioCount} 个\n` +
-        `• CompletionRatio: ${syncPriceResponse.stats.completionRatioCount} 个`;
-      
-      showStatus(statusMsg, 'success');
-    } else {
-      showStatus(`❌ 同步价格失败：${syncPriceResponse.error}`, 'error');
-    }
-    
-  } catch (error) {
-    showStatus(`❌ 错误：${error.message}`, 'error');
-  } finally {
-    hideProgress();
-  }
-}
-
 // 根据 URL 自动匹配渠道（已禁用，确保用户主动选择）
 async function autoMatchChannelFromUrl() {
   // 不再自动匹配渠道，确保用户主动选择
@@ -1695,7 +866,7 @@ async function autoMatchChannelFromUrl() {
       }, 4000);
       
       // 更新按钮状态
-      updateSmartSyncButton();
+
     }
   } catch (e) {
     // URL 格式错误，忽略
@@ -1737,7 +908,7 @@ function autoMatchChannelFromPrefix() {
       channelHint.style.color = 'var(--color-text-secondary)';
     }, 3000);
     
-    updateSmartSyncButton();
+
   }
   */
 }
@@ -1752,75 +923,14 @@ chrome.storage.local.get([
   // 不再恢复任何配置，确保第一次打开插件时所有配置都为空
   // 用户需要手动填写所有配置项
   
-  // 注释掉所有配置恢复逻辑
-  /*
-  // 优先使用新格式（分离的baseUrl和apiPath）
-  if (result.upstreamBaseUrl && upstreamBaseUrlInput) {
-    upstreamBaseUrlInput.value = result.upstreamBaseUrl;
-  } else if (result.upstreamUrl) {
-    // 向后兼容：如果只有旧格式的完整URL，则拆分它
-    setFullUpstreamUrl(result.upstreamUrl);
-  }
-  
-  if (result.apiPath && apiPathSelect) {
-    apiPathSelect.value = result.apiPath;
-    if (result.apiPath === 'custom' && apiPathCustomInput) {
-      apiPathCustomInput.style.display = 'block';
-    }
-  }
-  
-  if (result.modelPrefix) {
-    setPrefix(result.modelPrefix);
-  }
-  if (result.tokenGroup) {
-    tokenGroupSelect.value = result.tokenGroup;
-  }
-  
-  // 恢复自动配置模式的输入
-  if (result.autoConfigBaseUrl && upstreamBaseUrlAutoInput) {
-    upstreamBaseUrlAutoInput.value = result.autoConfigBaseUrl;
-  }
-  if (result.autoConfigApiPath && apiPathSelectAuto) {
-    apiPathSelectAuto.value = result.autoConfigApiPath;
-    if (result.autoConfigApiPath === 'custom' && apiPathCustomAutoInput) {
-      apiPathCustomAutoInput.style.display = 'block';
-      // 恢复自定义路径的值
-      if (result.autoConfigApiPathCustom) {
-        apiPathCustomAutoInput.value = result.autoConfigApiPathCustom;
-      }
-    }
-  }
-  if (result.autoConfigPrefix && modelPrefixAuto) {
-    modelPrefixAuto.value = result.autoConfigPrefix.replace(/\/+$/, '');
-  }
-  if (result.autoConfigApiKey && apiKeyInput) {
-    apiKeyInput.value = result.autoConfigApiKey;
-  }
-  if (result.autoConfigChannelTag && channelTagInput) {
-    channelTagInput.value = result.autoConfigChannelTag;
-  }
-  */
   
   // 确保所有输入框都为空
   if (upstreamBaseUrlInput) upstreamBaseUrlInput.value = '';
   if (apiPathSelect) apiPathSelect.value = 'api/pricing'; // 保持默认值
-  if (apiPathCustomInput) {
-    apiPathCustomInput.value = '';
-    apiPathCustomInput.style.display = 'none';
-  }
   if (modelPrefixInput) modelPrefixInput.value = '';
   if (tokenGroupSelect) tokenGroupSelect.value = 'default'; // 保持默认值
-  if (upstreamBaseUrlAutoInput) upstreamBaseUrlAutoInput.value = '';
-  if (apiPathSelectAuto) apiPathSelectAuto.value = 'api/pricing'; // 保持默认值
-  if (apiPathCustomAutoInput) {
-    apiPathCustomAutoInput.value = '';
-    apiPathCustomAutoInput.style.display = 'none';
-  }
-  if (modelPrefixAuto) modelPrefixAuto.value = '';
-  if (apiKeyInput) apiKeyInput.value = '';
-  if (channelTagInput) channelTagInput.value = '';
   
-  updateSmartSyncButton();
+
   
   // 加载完配置后检测登录状态
   checkLoginStatus();
@@ -1968,16 +1078,18 @@ channelSelect.addEventListener('change', async () => {
         upstreamBaseUrlInput.readOnly = true;
         upstreamBaseUrlInput.style.background = 'var(--color-bg)';
         upstreamBaseUrlInput.style.cursor = 'not-allowed';
+        triggerFieldHighlight(upstreamBaseUrlInput); // 触发高亮动画
       }
-      
+
       // 自动填充前缀并设为只读
       if (modelPrefixInput && selectedChannel.name) {
         modelPrefixInput.value = selectedChannel.name.replace(/\/+$/, '');
         modelPrefixInput.readOnly = true;
         modelPrefixInput.style.background = 'var(--color-bg)';
         modelPrefixInput.style.cursor = 'not-allowed';
+        triggerFieldHighlight(modelPrefixInput); // 触发高亮动画
       }
-      
+
       // 显示提示
       showStatus(`✅ 已自动填充渠道"${selectedChannel.name}"的配置`, 'success');
       setTimeout(() => {
@@ -2020,16 +1132,14 @@ channelSelect.addEventListener('change', async () => {
   }
   
   // 更新智能同步按钮状态
-  updateSmartSyncButton();
+
 });
 
-// 点击只读输入框时启用编辑
+// 点击只读输入框时启用编辑（CSS自动处理样式变化）
 if (upstreamBaseUrlInput) {
   upstreamBaseUrlInput.addEventListener('click', () => {
     if (upstreamBaseUrlInput.readOnly) {
       upstreamBaseUrlInput.readOnly = false;
-      upstreamBaseUrlInput.style.background = '';
-      upstreamBaseUrlInput.style.cursor = '';
       upstreamBaseUrlInput.focus();
       showStatus('✏️ 已启用手动编辑模式', 'info');
       setTimeout(() => {
@@ -2043,8 +1153,6 @@ if (modelPrefixInput) {
   modelPrefixInput.addEventListener('click', () => {
     if (modelPrefixInput.readOnly) {
       modelPrefixInput.readOnly = false;
-      modelPrefixInput.style.background = '';
-      modelPrefixInput.style.cursor = '';
       modelPrefixInput.focus();
       showStatus('✏️ 已启用手动编辑模式', 'info');
       setTimeout(() => {
@@ -2381,10 +1489,6 @@ function saveConfig() {
     tokenGroup: tokenGroupSelect?.value || ''
   };
   
-  if (config.apiPath === 'custom' && apiPathCustomInput) {
-    config.apiPathCustom = apiPathCustomInput.value.trim();
-  }
-  
   chrome.storage.local.set(config);
 }
 
@@ -2562,286 +1666,6 @@ function renderResultsTable(results, prefix = '') {
 
 
 // ========================================
-// 自动配置功能（一键创建渠道、供货商、模型）
-// ========================================
-
-/**
- * 执行自动配置（创建渠道、供货商、模型）
- * @returns {Promise<Object>} 配置结果
- */
-async function performAutoConfiguration() {
-  const upstreamUrl = getFullUpstreamUrlAuto();
-  // 使用自动配置模式的前缀输入框
-  const prefix = modelPrefixAuto?.value.trim() || '';
-  const normalizedPrefix = prefix ? (prefix.endsWith('/') ? prefix : prefix + '/') : '';
-  const apiKey = apiKeyInput?.value.trim() || '';
-  const channelTag = channelTagInput?.value.trim() || '公益';
-  const channelGroup = tokenGroupSelect?.value.trim() || 'default';
-  
-  if (!upstreamUrl) {
-    showStatus('⚠️ 请先输入上游定价 URL', 'error');
-    return { success: false, error: '缺少上游 URL' };
-  }
-  
-  if (!apiKey) {
-    showStatus('⚠️ 请先输入 API 密钥以创建渠道', 'error');
-    return { success: false, error: '缺少 API 密钥' };
-  }
-  
-  if (!normalizedPrefix) {
-    showStatus('⚠️ 请先输入渠道前缀', 'error');
-    return { success: false, error: '缺少渠道前缀' };
-  }
-  
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
-    // 确保 content script 已加载
-    const scriptReady = await ensureContentScript(tab.id);
-    if (!scriptReady) {
-      showStatus('❌ 无法连接到页面脚本，请刷新页面后重试', 'error');
-      return { success: false, error: '无法连接到页面' };
-    }
-    
-    showStatus('🚀 步骤 1/3: 正在创建渠道...', 'info');
-    showProgress(10, '创建渠道中...');
-    
-    // 步骤1: 提取 base_url（去掉 /api/pricing 后缀）
-    let baseUrl = upstreamUrl;
-    if (baseUrl.endsWith('/api/pricing')) {
-      baseUrl = baseUrl.replace(/\/api\/pricing$/, '');
-    }
-    
-    // 步骤2: 生成渠道名称（使用前缀去掉末尾斜杠）
-    const channelName = normalizedPrefix.replace(/\/$/, '');
-    
-    // 步骤3: 创建渠道数据
-    const channelData = {
-      type: 1, // OpenAI 类型
-      name: channelName,
-      key: apiKey,
-      base_url: baseUrl,
-      models: 'gpt-3.5-turbo', // 占位模型（字符串格式），后续会被同步覆盖
-      groups: channelGroup, // 字符串格式
-      tag: channelTag,
-      auto_ban: 0 // 关闭自动禁用
-    };
-    
-    // 调用创建渠道 API
-    const createChannelResult = await sendMessageWithRetry(tab.id, {
-      action: 'createChannel',
-      channelData: channelData
-    });
-    
-    if (!createChannelResult.success) {
-      showStatus(`❌ 创建渠道失败：${createChannelResult.error}`, 'error');
-      hideProgress();
-      return { success: false, error: createChannelResult.error };
-    }
-    
-    const channelResponse = createChannelResult.response;
-    
-    // 检查是否已存在
-    if (!channelResponse.success) {
-      if (channelResponse.error && channelResponse.error.includes('已存在')) {
-        showStatus('ℹ️ 渠道已存在，跳过创建步骤', 'info');
-        // 继续执行供货商创建
-      } else {
-        showStatus(`❌ 创建渠道失败：${channelResponse.error}`, 'error');
-        hideProgress();
-        return { success: false, error: channelResponse.error };
-      }
-    } else {
-      showStatus(`✅ 步骤 1/3: 渠道"${channelName}"创建成功`, 'success');
-    }
-    
-    showProgress(40, '步骤 1/3 完成');
-    
-    // 步骤4: 创建供货商
-    showStatus('🚀 步骤 2/3: 正在创建供货商...', 'info');
-    showProgress(50, '创建供货商中...');
-    
-    const vendorIcon = normalizedPrefix.replace(/\/$/, '');
-    // ✅ 修复：NewAPI 期望的字段名是 name 和 icon，而不是 vendor_name 和 vendor_icon
-    const vendorData = {
-      name: channelName,
-      icon: vendorIcon
-    };
-    
-    const createVendorResult = await sendMessageWithRetry(tab.id, {
-      action: 'createVendor',
-      vendorData: vendorData
-    });
-    
-    if (!createVendorResult.success) {
-      showStatus(`❌ 创建供货商失败：${createVendorResult.error}`, 'error');
-      hideProgress();
-      return { success: false, error: createVendorResult.error };
-    }
-    
-    const vendorResponse = createVendorResult.response;
-    
-    if (!vendorResponse.success) {
-      if (vendorResponse.error && vendorResponse.error.includes('已存在')) {
-        showStatus('ℹ️ 供货商已存在，跳过创建步骤', 'info');
-        // 需要获取现有供货商的 ID
-        // TODO: 这里需要查询供货商列表获取 vendor_id
-      } else {
-        showStatus(`❌ 创建供货商失败：${vendorResponse.error}`, 'error');
-        hideProgress();
-        return { success: false, error: vendorResponse.error };
-      }
-    } else {
-      showStatus(`✅ 步骤 2/3: 供货商"${channelName}"创建成功`, 'success');
-    }
-    
-    // ✅ 修复：vendor_id 在 data 对象中，不是在响应根级别
-    const vendorId = vendorResponse.data?.id;
-    
-    if (!vendorId) {
-      showStatus('❌ 未能获取供货商 ID', 'error');
-      hideProgress();
-      return { success: false, error: '未能获取供货商 ID' };
-    }
-    
-    showProgress(70, '步骤 2/3 完成');
-    
-    // 步骤5: 创建模型配置
-    showStatus('🚀 步骤 3/3: 正在创建模型配置...', 'info');
-    showProgress(80, '创建模型配置中...');
-    
-    // ✅ 修复：NewAPI 期望的字段名是 model_name，而不是 name
-    // 添加 icon 字段（使用去掉斜杠的前缀）
-    const modelIcon = normalizedPrefix.replace(/\/$/, '');
-    const modelConfigData = {
-      model_name: normalizedPrefix,
-      name_rule: 1, // 前缀匹配
-      vendor_id: vendorId,
-      icon: modelIcon, // 模型图标（例如：yb）
-      tags: channelTag  // ✅ 修复：字段名是 tags（复数），不是 tag
-    };
-    
-    const createModelResult = await sendMessageWithRetry(tab.id, {
-      action: 'createModel',
-      modelData: modelConfigData
-    });
-    
-    if (!createModelResult.success) {
-      showStatus(`❌ 创建模型配置失败：${createModelResult.error}`, 'error');
-      hideProgress();
-      return { success: false, error: createModelResult.error };
-    }
-    
-    const modelResponse = createModelResult.response;
-    
-    if (!modelResponse.success) {
-      if (modelResponse.error && modelResponse.error.includes('已存在')) {
-        showStatus('ℹ️ 模型配置已存在，跳过创建步骤', 'info');
-      } else {
-        showStatus(`❌ 创建模型配置失败：${modelResponse.error}`, 'error');
-        hideProgress();
-        return { success: false, error: modelResponse.error };
-      }
-    } else {
-      showStatus(`✅ 步骤 3/3: 模型配置创建成功`, 'success');
-    }
-    
-    showProgress(100, '✅ 自动配置完成');
-    
-    // 显示最终成功消息
-    showStatus(
-      `🎉 自动配置完成！\n\n` +
-      `✅ 渠道：${channelName}\n` +
-      `✅ 供货商：${channelName}\n` +
-      `✅ 模型前缀：${normalizedPrefix}\n` +
-      `✅ 标签：${channelTag}\n\n` +
-      `💡 现在可以使用"智能同步"功能同步价格了`,
-      'success'
-    );
-    
-    // 刷新渠道列表
-    setTimeout(() => {
-      loadChannelList();
-    }, 1000);
-    
-    hideProgress();
-    
-    return {
-      success: true,
-      channelName: channelName,
-      vendorId: vendorId
-    };
-    
-  } catch (error) {
-    showStatus(`❌ 自动配置失败：${error.message}`, 'error');
-    hideProgress();
-    return { success: false, error: error.message };
-  }
-}
-
-/**
- * 增强版智能同步（集成自动配置）
- */
-async function performEnhancedSmartSync() {
-  // 根据当前模式决定工作流程
-  const isAutoMode = (currentMode === 'auto');
-  const apiKey = document.getElementById('apiKeyInput').value.trim();
-  const channelId = channelSelect.value.trim();
-  
-  // 如果启用了自动配置且没有选择渠道
-  if (autoConfigEnabled && !channelId && apiKey) {
-    const confirmed = await showConfirmDialog({
-      title: '🚀 一键自动配置',
-      message: '检测到您启用了自动配置功能。\n\n将自动执行以下操作：\n1. 创建渠道\n2. 创建供货商\n3. 创建模型配置\n4. 同步模型列表\n5. 同步价格',
-      info: [
-        { label: '上游 URL', value: upstreamUrlInput.value.trim().substring(0, 40) + '...' },
-        { label: '模型前缀', value: modelPrefixInput.value.trim() || '(无前缀)' },
-        { label: '渠道标签', value: document.getElementById('channelTagInput').value.trim() || '公益' }
-      ],
-      confirmText: '开始自动配置',
-      cancelText: '取消'
-    });
-    
-    if (!confirmed) {
-      return;
-    }
-    
-    smartSyncBtn.disabled = true;
-    smartSyncBtn.innerHTML = '<span class="spinner"></span>自动配置中...';
-    
-    // 执行自动配置
-    const autoConfigResult = await performAutoConfiguration();
-    
-    if (!autoConfigResult.success) {
-      smartSyncBtn.disabled = false;
-      updateSmartSyncButton();
-      return;
-    }
-    
-    // 等待渠道列表刷新
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // 自动配置成功后，继续执行完整同步
-    smartSyncBtn.innerHTML = '<span class="spinner"></span>同步价格中...';
-    await performCompleteSyncLogic();
-    
-  } else {
-    // 原有逻辑：根据是否选择渠道决定同步模式
-    const channelId = channelSelect.value.trim();
-    
-    if (channelId) {
-      await performCompleteSyncLogic();
-    } else {
-      await performQuickUpdateLogic();
-    }
-  }
-  
-  // ✅ 修复：确保在所有路径下都恢复按钮状态
-  smartSyncBtn.disabled = false;
-  updateSmartSyncButton();
-}
-
-// ========================================
 // 模型选择弹窗功能
 // ========================================
 
@@ -3008,11 +1832,13 @@ async function showModelSelectionModal(channelId) {
         // 即使恢复失败也继续执行，只是不预选任何模型
         selectedModels.clear();
       }
-      
+
       // 修复Bug 1: 在显示弹窗前，先保存当前选择状态，以便在用户没有修改时也能返回正确的选择
       const initialSelectedModels = Array.from(selectedModels);
+      // 保存初始预选的模型到全局变量（用于置顶显示）
+      initialPreselectedModels = new Set(selectedModels);
       console.log(`🔍 保存初始选择状态: ${initialSelectedModels.length} 个模型`, initialSelectedModels);
-      
+
       // 渲染模型选择列表
       try {
         renderModelSelectionList();
@@ -3309,23 +2135,25 @@ function renderModelSelectionList(searchTerm = '') {
   
   console.log(`🔍 渲染模型列表: ${filteredModels.length} 个模型，已选择 ${selectedModels.size} 个`);
   console.log(`🔍 已选择的模型:`, Array.from(selectedModels));
-  
-  // 将模型分为已选择和未选择两组
-  const selectedModelsList = filteredModels.filter(model => selectedModels.has(model));
-  const unselectedModelsList = filteredModels.filter(model => !selectedModels.has(model));
-  
-  // 合并列表：已选择的在前，未选择的在后
-  const sortedModels = [...selectedModelsList, ...unselectedModelsList];
-  
+  console.log(`🔍 初始预选的模型:`, Array.from(initialPreselectedModels));
+
+  // 将模型分为三组：初始预选、其他模型
+  // 只有初始预选的模型会置顶显示，用户后续选择的模型保持原位置
+  const initialPreselectedList = filteredModels.filter(model => initialPreselectedModels.has(model));
+  const otherModelsList = filteredModels.filter(model => !initialPreselectedModels.has(model));
+
+  // 合并列表：初始预选的在前，其他的保持原顺序
+  const sortedModels = [...initialPreselectedList, ...otherModelsList];
+
   const fragment = document.createDocumentFragment();
-  
-  // 添加分组标题（如果有已选择的模型）
-  if (selectedModelsList.length > 0) {
+
+  // 添加分组标题（如果有初始预选的模型）
+  if (initialPreselectedList.length > 0) {
     const headerItem = document.createElement('div');
     headerItem.className = 'model-selection-header';
     headerItem.innerHTML = `
       <div style="font-size: 12px; color: var(--color-primary); font-weight: 600; padding: 8px 12px; background: rgba(0, 122, 255, 0.08); border-radius: 6px; margin-bottom: 4px;">
-        ✅ 已选择的模型 (${selectedModelsList.length}个)
+        ✅ 渠道已配置的模型 (${initialPreselectedList.length}个)
       </div>
     `;
     fragment.appendChild(headerItem);
@@ -3375,7 +2203,7 @@ function renderModelSelectionList(searchTerm = '') {
     if (e.target.classList.contains('model-checkbox')) {
       const model = e.target.dataset.model;
       const modelItem = e.target.closest('.model-selection-item');
-      
+
       if (e.target.checked) {
         selectedModels.add(model);
         modelItem.classList.add('selected');
@@ -3385,9 +2213,8 @@ function renderModelSelectionList(searchTerm = '') {
         modelItem.classList.remove('selected');
         console.log(`❌ 用户取消选择了模型: ${model}`);
       }
-      
-      // 重新渲染列表以保持已选择模型置顶
-      renderModelSelectionList(modelSearchInput.value);
+
+      // 只更新统计信息，不重新渲染列表（保持用户选择的模型在原位置）
       updateModelSelectionStats();
     }
   });
@@ -3465,16 +2292,21 @@ function bindModelSelectionEvents(resolve, initialSelectedModels = []) {
           console.error('❌ 搜索事件对象无效');
           return;
         }
-        
+
         const searchTerm = e.target.value || '';
         console.log(`🔍 用户搜索模型: "${searchTerm}"`);
-        
+
+        // 显示/隐藏清除按钮
+        if (modelSearchClearBtn) {
+          modelSearchClearBtn.style.display = searchTerm.trim() ? 'flex' : 'none';
+        }
+
         // 验证availableModels是否存在
         if (!Array.isArray(availableModels)) {
           console.error('❌ availableModels 不是有效的数组');
           return;
         }
-        
+
         renderModelSelectionList(searchTerm);
       } catch (error) {
         console.error('❌ 处理搜索事件时出错:', error);
@@ -3483,7 +2315,16 @@ function bindModelSelectionEvents(resolve, initialSelectedModels = []) {
     };
     
     modelSearchInput.addEventListener('input', handleSearch);
-    
+
+    // 模型搜索清除按钮
+    if (modelSearchClearBtn) {
+      modelSearchClearBtn.addEventListener('click', () => {
+        modelSearchInput.value = '';
+        modelSearchInput.dispatchEvent(new Event('input')); // 触发input事件
+        modelSearchInput.focus();
+      });
+    }
+
     // 全选按钮
     const handleSelectAll = () => {
       try {
@@ -3532,7 +2373,39 @@ function bindModelSelectionEvents(resolve, initialSelectedModels = []) {
     };
     
     deselectAllModelsBtn.addEventListener('click', handleDeselectAll);
-    
+
+    // 反选按钮
+    const handleInvertSelection = () => {
+      try {
+        console.log('🔍 用户点击反选按钮');
+
+        // 使用当前显示的模型列表进行反选（考虑搜索过滤）
+        const searchTerm = modelSearchInput.value.trim().toLowerCase();
+        const filteredModels = searchTerm
+          ? availableModels.filter(model => model.toLowerCase().includes(searchTerm))
+          : availableModels;
+
+        // 对过滤后的模型进行反选
+        filteredModels.forEach(model => {
+          if (selectedModels.has(model)) {
+            selectedModels.delete(model);
+          } else {
+            selectedModels.add(model);
+          }
+        });
+
+        console.log(`✅ 反选完成，当前选择了 ${selectedModels.size} 个模型`);
+
+        renderModelSelectionList(searchTerm);
+        updateModelSelectionStats();
+      } catch (error) {
+        console.error('❌ 处理反选事件时出错:', error);
+        showStatus('❌ 反选操作失败', 'error');
+      }
+    };
+
+    invertSelectionBtn.addEventListener('click', handleInvertSelection);
+
     // 取消按钮
     const handleCancel = () => {
       try {
@@ -3790,21 +2663,8 @@ if (editModelsBtn) {
   editModelsBtn.addEventListener('click', reopenModelSelectionModal);
 }
 
-// 初始化：自动配置开关提示
+// 初始化：DOM 加载完成后的处理
 document.addEventListener('DOMContentLoaded', () => {
-  // 自动配置开关变化时更新提示
-  const autoConfigToggle = document.getElementById('autoConfigToggle');
-  const apiKeyInput = document.getElementById('apiKeyInput');
-  
-  if (autoConfigToggle && apiKeyInput) {
-    autoConfigToggle.addEventListener('change', () => {
-      if (autoConfigToggle.checked && !apiKeyInput.value.trim()) {
-        showStatus('💡 提示：启用自动配置需要填写 API 密钥', 'info');
-        setTimeout(() => {
-          apiKeyInput.focus();
-        }, 500);
-      }
-    });
-  }
+  console.log('✅ DOM 加载完成，开始初始化');
 });
 

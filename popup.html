@@ -36,7 +36,6 @@
 
     body {
       width: 480px;
-      min-height: 500px;
       max-height: 700px;
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
       background: var(--color-bg);
@@ -54,12 +53,12 @@
     }
 
     /* ========================================
-       Header Card
+       Header Card（紧凑版）
        ======================================== */
     .header-card {
       background: var(--color-card);
       border-radius: var(--radius-lg);
-      padding: 20px;
+      padding: 14px 16px;
       margin-bottom: 12px;
       box-shadow: var(--shadow-sm);
     }
@@ -68,53 +67,67 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 16px;
     }
 
     .app-info {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
     }
 
     .app-icon {
-      width: 52px;
-      height: 52px;
+      width: 40px;
+      height: 40px;
       background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
-      border-radius: 12px;
+      border-radius: 10px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 24px;
+      font-size: 20px;
       box-shadow: 0 2px 8px rgba(0, 122, 255, 0.25);
     }
 
-    .app-title h1 {
-      font-size: 20px;
-      font-weight: 600;
-      letter-spacing: -0.3px;
-      margin-bottom: 2px;
+    .app-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
-    .app-title p {
-      font-size: 13px;
+    .app-title h1 {
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+      margin: 0;
+    }
+
+    #loginStatus {
+      font-size: 12px;
+      font-weight: 500;
       color: var(--color-text-secondary);
-      font-weight: 400;
+      transition: color 0.3s ease;
+    }
+
+    #loginStatus.status-success {
+      color: var(--color-success);
+    }
+
+    #loginStatus.status-error {
+      color: var(--color-warning);
     }
 
     .header-actions {
       display: flex;
-      gap: 6px;
+      gap: 5px;
     }
 
     .icon-btn {
-      width: 32px;
-      height: 32px;
+      width: 28px;
+      height: 28px;
       background: var(--color-bg);
       border: none;
-      border-radius: 8px;
+      border-radius: 7px;
       color: var(--color-primary);
-      font-size: 15px;
+      font-size: 14px;
       cursor: pointer;
       display: flex;
       align-items: center;
@@ -127,18 +140,18 @@
       transform: scale(0.95);
     }
 
-    /* Info Banner */
+    /* Info Banner（紧凑版）*/
     .info-banner {
       background: rgba(0, 122, 255, 0.08);
       border-radius: var(--radius-md);
-      padding: 12px 14px;
+      padding: 10px 12px;
       display: flex;
       align-items: center;
-      gap: 10px;
-      font-size: 13px;
+      gap: 8px;
+      font-size: 12px;
       color: var(--color-primary);
       line-height: 1.4;
-      min-height: 44px;
+      min-height: 38px;
       position: relative;
       transition: all 0.3s ease;
     }
@@ -148,23 +161,23 @@
     }
 
     .info-banner-icon {
-      font-size: 16px;
-      margin-top: 1px;
+      font-size: 14px;
+      margin-top: 0;
       flex-shrink: 0;
     }
 
     .banner-close-btn {
       position: absolute;
-      right: 10px;
+      right: 8px;
       top: 50%;
       transform: translateY(-50%);
-      width: 24px;
-      height: 24px;
+      width: 22px;
+      height: 22px;
       border: none;
       background: rgba(0, 0, 0, 0.05);
       border-radius: 50%;
       color: var(--color-text-secondary);
-      font-size: 18px;
+      font-size: 16px;
       line-height: 1;
       cursor: pointer;
       display: flex;
@@ -1101,66 +1114,28 @@
       transform: translateY(0);
     }
     
+
     /* ========================================
-       模式切换器 (iOS Segmented Control)
+       自动填充字段高亮动画
        ======================================== */
-    .mode-switcher {
-      background: var(--color-bg);
-      border-radius: var(--radius-md);
-      padding: 4px;
-      display: flex;
-      gap: 4px;
-      margin-bottom: 16px;
-    }
-    
-    .mode-btn {
-      flex: 1;
-      height: 36px;
-      border: none;
-      border-radius: calc(var(--radius-md) - 2px);
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-      background: transparent;
-      color: var(--color-text-primary);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-    }
-    
-    .mode-btn:active {
-      transform: scale(0.96);
-    }
-    
-    .mode-btn.active {
-      background: var(--color-card);
-      color: var(--color-primary);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    }
-    
-    /* 模式内容区域 */
-    .mode-content {
-      display: none;
-    }
-    
-    .mode-content.active {
-      display: block;
-      animation: fadeInUp 0.4s ease;
-    }
-    
-    @keyframes fadeInUp {
-      from {
-        opacity: 0;
-        transform: translateY(12px);
+    @keyframes fieldHighlight {
+      0% {
+        background: rgba(0, 122, 255, 0.2);
+        transform: scale(1.02);
       }
-      to {
-        opacity: 1;
-        transform: translateY(0);
+      50% {
+        background: rgba(0, 122, 255, 0.15);
+      }
+      100% {
+        background: var(--color-bg);
+        transform: scale(1);
       }
     }
-    
+
+    .input-field.auto-filled {
+      animation: fieldHighlight 0.6s ease;
+    }
+
     /* 字段分组标题 */
     .field-group-title {
       font-size: 13px;
@@ -1311,7 +1286,96 @@
     .model-selection-header {
       margin-bottom: 8px;
     }
-    
+
+    /* ========================================
+       可编辑只读字段交互优化
+       ======================================== */
+    .editable-field-wrapper {
+      position: relative;
+    }
+
+    .edit-hint {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 12px;
+      color: var(--color-text-secondary);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .editable-readonly {
+      background: var(--color-bg);
+      cursor: pointer !important;
+      border: 1px dashed var(--color-separator);
+      transition: all 0.2s ease;
+      padding-right: 100px; /* 为编辑提示预留空间 */
+    }
+
+    .editable-readonly:hover {
+      border-color: var(--color-primary);
+      background: rgba(0, 122, 255, 0.05);
+    }
+
+    .editable-readonly:hover + .edit-hint {
+      opacity: 1;
+    }
+
+    .editable-readonly:not([readonly]) {
+      border-style: solid;
+      background: var(--color-card);
+      padding-right: 14px; /* 恢复正常padding */
+    }
+
+    .editable-readonly:not([readonly]) + .edit-hint {
+      display: none;
+    }
+
+    /* ========================================
+       搜索框清除按钮
+       ======================================== */
+    .search-wrapper {
+      position: relative;
+      width: 100%;
+    }
+
+    .search-input-with-clear {
+      padding-right: 40px !important; /* 为清除按钮预留空间 */
+    }
+
+    .search-clear-btn {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 24px;
+      height: 24px;
+      border: none;
+      background: rgba(0, 0, 0, 0.05);
+      border-radius: 50%;
+      color: var(--color-text-secondary);
+      font-size: 20px;
+      line-height: 1;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      padding: 0;
+      font-weight: 300;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .search-clear-btn:hover {
+      background: rgba(0, 0, 0, 0.1);
+      color: var(--color-text-primary);
+    }
+
+    .search-clear-btn:active {
+      transform: translateY(-50%) scale(0.9);
+    }
+
     /* 添加旋转动画 */
     @keyframes spin {
       to { transform: rotate(360deg); }
@@ -1412,14 +1476,18 @@
       </div>
       <div class="modal-body" style="padding: 0 20px 20px; flex: 1; overflow: hidden; display: flex; flex-direction: column;">
         <!-- 搜索框 -->
-        <div style="margin-bottom: 12px; flex-shrink: 0;">
-          <input type="text" id="modelSearchInput" class="input-field-modal" placeholder="🔍 搜索模型名称..." style="margin-top: 0;">
+        <div class="search-wrapper" style="margin-bottom: 12px; flex-shrink: 0;">
+          <input type="text" id="modelSearchInput" class="input-field-modal search-input-with-clear" placeholder="🔍 搜索模型名称..." style="margin-top: 0;">
+          <button class="search-clear-btn" id="modelSearchClearBtn" style="display: none;">×</button>
         </div>
         
         <!-- 操作按钮 -->
         <div style="display: flex; gap: 8px; margin-bottom: 8px; flex-shrink: 0;">
           <button id="selectAllModelsBtn" class="preset-action-btn" style="flex: 1;">
             ✅ 全选
+          </button>
+          <button id="invertSelectionBtn" class="preset-action-btn" style="flex: 1;">
+            🔄 反选
           </button>
           <button id="deselectAllModelsBtn" class="preset-action-btn" style="flex: 1;">
             ❌ 全不选
@@ -1450,8 +1518,8 @@
         <div class="app-info">
           <div class="app-icon">🚀</div>
           <div class="app-title">
-            <h1>PriceSyncPro</h1>
-            <p>定价同步助手</p>
+            <h1>模型同步</h1>
+            <span id="loginStatus">正在检测...</span>
           </div>
         </div>
         <div class="header-actions">
@@ -1459,31 +1527,12 @@
           <button class="icon-btn" title="设置">⚙</button>
         </div>
       </div>
-      
-      <div id="infoBanner" class="info-banner">
-        <span class="info-banner-icon">ℹ️</span>
-        <span id="infoBannerText">正在检测登录状态...</span>
-        <button id="closeBannerBtn" class="banner-close-btn" title="关闭提示">×</button>
-      </div>
     </div>
 
     <!-- Input Card -->
     <div class="input-card">
-      <!-- 模式切换器 -->
-      <div class="mode-switcher">
-        <button class="mode-btn active" id="quickSyncModeBtn">
-          <span>⚡</span>
-          <span>快速同步</span>
-        </button>
-        <button class="mode-btn" id="autoConfigModeBtn">
-          <span>🚀</span>
-          <span>自动配置</span>
-        </button>
-      </div>
-
-
       <!-- 快速同步模式内容 -->
-      <div id="quickSyncMode" class="mode-content active">
+      <div id="quickSyncMode">
         <div class="field-group-title">
           <span>🎯</span>
           <span>选择渠道</span>
@@ -1513,11 +1562,13 @@
 
         <div class="input-group">
           <label class="input-label">上游基础 URL</label>
-          <div class="input-wrapper">
-            <input type="text" id="upstreamBaseUrl" class="input-field" placeholder="选择渠道后自动填充" readonly style="background: var(--color-bg); cursor: not-allowed;">
+          <div class="input-wrapper editable-field-wrapper">
+            <input type="text" id="upstreamBaseUrl" class="input-field editable-readonly" placeholder="选择渠道后自动填充" readonly>
+            <span class="edit-hint">✏️ 点击编辑</span>
           </div>
-          <div class="input-hint">💡 此字段由选择的渠道自动填充，如需修改请点击输入框启用编辑</div>
+          <div class="input-hint">💡 此字段由选择的渠道自动填充</div>
         </div>
+
 
         <div class="input-group">
           <label class="input-label">API 路径</label>
@@ -1525,27 +1576,25 @@
             <select id="apiPathSelect" class="input-field">
               <option value="api/pricing">/api/pricing (New API)</option>
               <option value="api/available_model">/api/available_model (One Hub)</option>
-              <option value="custom">自定义...</option>
             </select>
           </div>
-          <input type="text" id="apiPathCustom" class="input-field" style="display: none; margin-top: 8px;" placeholder="输入自定义 API 路径，例如：v1/models">
           <div class="input-hint">💡 根据渠道类型选择对应的API路径</div>
         </div>
 
         <div class="input-group">
           <label class="input-label">渠道前缀</label>
-          <div class="input-wrapper">
+          <div class="input-wrapper editable-field-wrapper">
             <input
               type="text"
               id="modelPrefix"
-              class="input-field"
+              class="input-field editable-readonly"
               placeholder="选择渠道后自动填充"
               readonly
-              style="background: var(--color-bg); cursor: not-allowed;"
               title="💡 自动在末尾添加 /"
             >
+            <span class="edit-hint">✏️ 点击编辑</span>
           </div>
-          <div class="input-hint">💡 此字段由选择的渠道自动填充，如需修改请点击输入框启用编辑</div>
+          <div class="input-hint">💡 此字段由选择的渠道自动填充</div>
         </div>
 
         <!-- 高级选项 -->
@@ -1585,106 +1634,14 @@
           </div>
         </div>
       </div>
-
-      <!-- 自动配置模式内容 -->
-      <div id="autoConfigMode" class="mode-content">
-        <div class="field-group-title">
-          <span>🚀</span>
-          <span>一键自动配置</span>
-        </div>
-
-        <div style="background: rgba(0, 122, 255, 0.08); border-radius: var(--radius-md); padding: 12px 14px; margin-bottom: 16px; font-size: 13px; line-height: 1.5; color: var(--color-primary);">
-          <strong>💡 提示：</strong>此模式将自动创建渠道、供货商和模型配置，无需手动操作后台
-        </div>
-
-        <div class="input-group">
-          <label class="input-label">上游基础 URL</label>
-          <div class="input-wrapper">
-            <input type="text" id="upstreamBaseUrlAuto" class="input-field" placeholder="https://api.example.com">
-          </div>
-        </div>
-
-        <div class="input-group">
-          <label class="input-label">API 路径</label>
-          <div class="input-wrapper">
-            <select id="apiPathSelectAuto" class="input-field">
-              <option value="api/pricing">/api/pricing (New API)</option>
-              <option value="api/available_model">/api/available_model (One Hub)</option>
-              <option value="custom">自定义...</option>
-            </select>
-          </div>
-          <input type="text" id="apiPathCustomAuto" class="input-field" style="display: none; margin-top: 8px;" placeholder="输入自定义 API 路径，例如：v1/models">
-        </div>
-
-        <div class="input-group">
-          <label class="input-label">渠道前缀</label>
-          <div class="input-wrapper">
-            <input
-              type="text"
-              id="modelPrefixAuto"
-              class="input-field"
-              placeholder="例如：Ely 或 233"
-              title="💡 自动在末尾添加 /"
-            >
-          </div>
-          <div class="input-hint">💡 用于创建供货商和模型配置</div>
-        </div>
-
-        <div class="field-group-divider"></div>
-
-        <div class="field-group-title">
-          <span>🔑</span>
-          <span>渠道凭证</span>
-        </div>
-
-        <div class="input-group">
-          <label class="input-label">
-            API 密钥（必填）
-            <span style="float: right; font-size: 11px; color: var(--color-text-secondary); font-weight: 400;">🔒 仅本地存储</span>
-          </label>
-          <div class="input-wrapper">
-            <input
-              type="password"
-              id="apiKeyInput"
-              class="input-field"
-              placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxx"
-              title="💡 用于自动创建渠道的 API 密钥"
-            >
-          </div>
-        </div>
-
-        <div class="input-group">
-          <label class="input-label">渠道标签（可选）</label>
-          <div class="input-wrapper">
-            <input
-              type="text"
-              id="channelTagInput"
-              class="input-field"
-              placeholder="默认：公益"
-              title="💡 用于标记渠道，方便分类管理"
-            >
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- Buttons -->
     <div class="btn-group">
-      <button class="btn btn-primary" id="smartSyncBtn" disabled style="background: linear-gradient(135deg, var(--color-success) 0%, var(--color-primary) 100%);">
-        <span class="btn-icon">🚀</span>
-        <span id="smartSyncBtnText">智能同步</span>
-      </button>
-      <button class="btn btn-secondary" id="syncModelsOnlyBtn" style="margin-top: 10px;">
+      <button class="btn btn-primary" id="syncModelsOnlyBtn">
         <span class="btn-icon">📋</span>
         <span>仅同步模型</span>
       </button>
-      <button class="btn btn-secondary" id="batchUpdateBtn" style="margin-top: 10px;">
-        <span class="btn-icon">🔄</span>
-        <span>批量更新所有渠道</span>
-      </button>
-      <div class="input-hint" id="syncModeHint" style="text-align: center; margin-top: -6px; margin-bottom: 12px; display: none;">
-        💡 <span id="syncModeText"></span> | ⌨️ 快捷键: Ctrl+Enter
-      </div>
     </div>
 
     <!-- Status Message -->
@@ -1703,8 +1660,9 @@
         <span class="results-stats" id="resultsStats"></span>
       </div>
       <!-- 搜索框 -->
-      <div style="margin-bottom: 12px;">
-        <input type="text" id="tableSearchInput" class="input-field" placeholder="🔍 搜索模型名称..." style="font-size: 14px; padding: 10px 12px;">
+      <div class="search-wrapper" style="margin-bottom: 12px;">
+        <input type="text" id="tableSearchInput" class="input-field search-input-with-clear" placeholder="🔍 搜索模型名称..." style="font-size: 14px; padding: 10px 12px;">
+        <button class="search-clear-btn" id="tableSearchClearBtn" style="display: none;">×</button>
       </div>
       <div class="table-wrapper">
         <table>
