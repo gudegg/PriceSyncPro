@@ -74,3 +74,4 @@ build/
 # ========== 项目特定（不提交到 GitHub）==========
 # 发布指南（仅供本地参考）
 RELEASE_GUIDE.md
+temp_diff.txt

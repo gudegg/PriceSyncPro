@@ -19,6 +19,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 // ========================================
 document.addEventListener('keydown', (e) => {
   // Esc 键：关闭所有打开的对话框
+  // 注意：modelSelectionModal由其专用的ESC处理器管理，不在此处理
   if (e.key === 'Escape') {
     if (confirmModal.classList.contains('show')) {
       confirmModal.classList.remove('show');
@@ -29,10 +30,7 @@ document.addEventListener('keydown', (e) => {
     if (listModal.classList.contains('show')) {
       listModal.classList.remove('show');
     }
-    if (modelSelectionModal.classList.contains('show')) {
-      modelSelectionModal.classList.remove('show');
-      modelSearchInput.value = '';
-    }
+    // modelSelectionModal的ESC由bindModelSelectionEvents处理，避免冲突
   }
 });
 
@@ -1055,6 +1053,10 @@ if (refreshChannelsBtn) {
 }
 
 // 渠道选择变化时触发智能匹配（不再保存到缓存）
+// 添加防抖和互斥锁，防止快速切换渠道导致的竞态条件
+let isChannelChanging = false;
+let channelChangeTimeout = null;
+
 channelSelect.addEventListener('change', async () => {
   const channelId = channelSelect.value;
   
@@ -1065,71 +1067,96 @@ channelSelect.addEventListener('change', async () => {
     return;
   }
   
-  if (channelId) {
-    // 不再保存到本地存储，确保每次都重新选择
-    // chrome.storage.local.set({ channelId: channelId });
-    
-    // 智能填充：从选中的渠道自动获取URL和前缀
-    const selectedChannel = channelsList.find(ch => ch.id == channelId);
-    if (selectedChannel && selectedChannel.baseUrl) {
-      // 自动填充基础URL并设为只读
-      if (upstreamBaseUrlInput) {
-        upstreamBaseUrlInput.value = selectedChannel.baseUrl;
-        upstreamBaseUrlInput.readOnly = true;
-        upstreamBaseUrlInput.style.background = 'var(--color-bg)';
-        upstreamBaseUrlInput.style.cursor = 'not-allowed';
-        triggerFieldHighlight(upstreamBaseUrlInput); // 触发高亮动画
-      }
-
-      // 自动填充前缀并设为只读
-      if (modelPrefixInput && selectedChannel.name) {
-        modelPrefixInput.value = selectedChannel.name.replace(/\/+$/, '');
-        modelPrefixInput.readOnly = true;
-        modelPrefixInput.style.background = 'var(--color-bg)';
-        modelPrefixInput.style.cursor = 'not-allowed';
-        triggerFieldHighlight(modelPrefixInput); // 触发高亮动画
-      }
-
-      // 显示提示
-      showStatus(`✅ 已自动填充渠道"${selectedChannel.name}"的配置`, 'success');
-      setTimeout(() => {
-        statusDiv.classList.remove('show');
-      }, 2000);
-    }
-    
-    performIntelligentChannelMatch();
-    
-    // 修复Bug 2: 每次切换渠道都显示模型选择弹窗
-    // 修复Bug 1: 确保即使没有新选择，也能正确显示已选择的模型
-    console.log(`🔍 渠道选择变化，准备显示模型选择弹窗，渠道ID: ${channelId}`);
-    
-    try {
-      // 每次都重新显示模型选择弹窗，不使用缓存
-      console.log(`🔍 调用 showModelSelectionModal`);
-      const selectedModelsList = await showModelSelectionModal(channelId);
-      console.log(`🔍 showModelSelectionModal 返回，选择了 ${selectedModelsList.length} 个模型`);
-      
-      currentChannelSelectedModels = selectedModelsList; // 保存选择的模型列表
-      
-      if (selectedModelsList.length === 0) {
-        showStatus('⚠️ 未选择任何模型，将同步所有可用模型', 'warning');
-      } else {
-        showStatus(`✅ 已选择 ${selectedModelsList.length} 个模型进行同步`, 'success');
-        setTimeout(() => {
-          statusDiv.classList.remove('show');
-        }, 2000);
-      }
-      
-      // 修复Bug 1: 确保更新已选择模型的显示
-      console.log(`🔍 更新已选择模型显示`);
-      updateSelectedModelsDisplay();
-    } catch (error) {
-      console.error('显示模型选择弹窗失败:', error);
-      showStatus('⚠️ 模型选择弹窗显示失败，将同步所有模型', 'warning');
-      currentChannelSelectedModels = []; // 清空选择
-      updateSelectedModelsDisplay();
-    }
+  // 防抖：清除之前的定时器
+  if (channelChangeTimeout) {
+    clearTimeout(channelChangeTimeout);
   }
+  
+  // 互斥锁：如果正在处理中，取消本次操作
+  if (isChannelChanging) {
+    console.log('⚠️ 渠道切换正在进行中，忽略重复操作');
+    return;
+  }
+  
+  // 设置防抖延迟（300ms）
+  channelChangeTimeout = setTimeout(async () => {
+    if (channelId) {
+      // 设置互斥锁
+      isChannelChanging = true;
+      
+      try {
+        // 不再保存到本地存储，确保每次都重新选择
+        // chrome.storage.local.set({ channelId: channelId });
+        
+        // 智能填充：从选中的渠道自动获取URL和前缀
+        const selectedChannel = channelsList.find(ch => ch.id == channelId);
+        if (selectedChannel && selectedChannel.baseUrl) {
+          // 自动填充基础URL并设为只读
+          if (upstreamBaseUrlInput) {
+            upstreamBaseUrlInput.value = selectedChannel.baseUrl;
+            upstreamBaseUrlInput.readOnly = true;
+            upstreamBaseUrlInput.style.background = 'var(--color-bg)';
+            upstreamBaseUrlInput.style.cursor = 'not-allowed';
+            triggerFieldHighlight(upstreamBaseUrlInput); // 触发高亮动画
+          }
+
+          // 自动填充前缀并设为只读
+          if (modelPrefixInput && selectedChannel.name) {
+            modelPrefixInput.value = selectedChannel.name.replace(/\/+$/, '');
+            modelPrefixInput.readOnly = true;
+            modelPrefixInput.style.background = 'var(--color-bg)';
+            modelPrefixInput.style.cursor = 'not-allowed';
+            triggerFieldHighlight(modelPrefixInput); // 触发高亮动画
+          }
+
+          // 显示提示
+          showStatus(`✅ 已自动填充渠道"${selectedChannel.name}"的配置`, 'success');
+          setTimeout(() => {
+            statusDiv.classList.remove('show');
+          }, 2000);
+        }
+        
+        performIntelligentChannelMatch();
+        
+        // 修复Bug 2: 每次切换渠道都显示模型选择弹窗
+        // 修复Bug 1: 确保即使没有新选择，也能正确显示已选择的模型
+        console.log(`🔍 渠道选择变化，准备显示模型选择弹窗，渠道ID: ${channelId}`);
+        
+        try {
+          // 每次都重新显示模型选择弹窗，不使用缓存
+          console.log(`🔍 调用 showModelSelectionModal`);
+          const selectedModelsList = await showModelSelectionModal(channelId);
+          console.log(`🔍 showModelSelectionModal 返回，选择了 ${selectedModelsList.length} 个模型`);
+          
+          currentChannelSelectedModels = selectedModelsList; // 保存选择的模型列表
+          
+          if (selectedModelsList.length === 0) {
+            showStatus('⚠️ 未选择任何模型，将同步所有可用模型', 'warning');
+          } else {
+            showStatus(`✅ 已选择 ${selectedModelsList.length} 个模型进行同步`, 'success');
+            setTimeout(() => {
+              statusDiv.classList.remove('show');
+            }, 2000);
+          }
+          
+          // 修复Bug 1: 确保更新已选择模型的显示
+          console.log(`🔍 更新已选择模型显示`);
+          updateSelectedModelsDisplay();
+        } catch (error) {
+          console.error('显示模型选择弹窗失败:', error);
+          showStatus('⚠️ 模型选择弹窗显示失败，将同步所有模型', 'warning');
+          currentChannelSelectedModels = []; // 清空选择
+          updateSelectedModelsDisplay();
+        }
+      } catch (error) {
+        console.error('❌ 渠道切换处理失败:', error);
+        showStatus('❌ 渠道切换失败，请重试', 'error');
+      } finally {
+        // 释放互斥锁
+        isChannelChanging = false;
+      }
+    }
+  }, 300); // 300ms防抖延迟
   
   // 更新智能同步按钮状态
 
@@ -1676,6 +1703,47 @@ function renderResultsTable(results, prefix = '') {
  */
 async function showModelSelectionModal(channelId) {
   return new Promise(async (resolve) => {
+    // 定义错误显示 helper，同时绑定关闭事件
+    const showError = (message, detail = '') => {
+        modelSelectionList.innerHTML = `
+          <div class="error-state">
+            <div style="text-align: center; color: var(--color-danger); font-size: 14px; padding: 20px;">
+              ${message}<br>
+              <span style="font-size: 12px; color: var(--color-text-secondary);">${detail}</span>
+            </div>
+          </div>
+        `;
+        // 启用取消按钮以便用户关闭
+        if (modelSelectionCancelBtn) modelSelectionCancelBtn.disabled = false;
+        
+        // 绑定事件确保取消按钮可用
+        try {
+            // 传递空数组作为初始选择，确保至少能绑定取消事件
+            bindModelSelectionEvents(resolve, []);
+        } catch (e) {
+            console.error('Failed to bind events in error state:', e);
+             // 降级处理：简单的点击关闭
+             if (modelSelectionCancelBtn) {
+                 modelSelectionCancelBtn.onclick = () => {
+                     modelSelectionModal.classList.remove('show');
+                     resolve([]);
+                 };
+             }
+        }
+    };
+
+    // 临时关闭处理函数
+    const tempCancelHandler = () => {
+        console.log('🔍 用户取消操作（加载中）');
+        modelSelectionModal.classList.remove('show');
+        resolve([]);
+        // 自我清理
+        if (modelSelectionCancelBtn._tempHandler) {
+          modelSelectionCancelBtn.removeEventListener('click', modelSelectionCancelBtn._tempHandler);
+          modelSelectionCancelBtn._tempHandler = null;
+        }
+    };
+
     try {
       // 参数验证
       if (!channelId) {
@@ -1701,6 +1769,13 @@ async function showModelSelectionModal(channelId) {
       deselectAllModelsBtn.disabled = true;
       modelSelectionConfirmBtn.disabled = true;
       
+      // 绑定临时关闭事件（先移除旧的，防止重复绑定）
+      if (modelSelectionCancelBtn._tempHandler) {
+        modelSelectionCancelBtn.removeEventListener('click', modelSelectionCancelBtn._tempHandler);
+      }
+      modelSelectionCancelBtn._tempHandler = tempCancelHandler;
+      modelSelectionCancelBtn.addEventListener('click', tempCancelHandler);
+      
       // 获取当前标签页
       let tab;
       try {
@@ -1711,15 +1786,11 @@ async function showModelSelectionModal(channelId) {
         tab = tabs[0];
       } catch (error) {
         console.error('❌ 获取当前标签页失败:', error);
-        modelSelectionList.innerHTML = `
-          <div class="error-state">
-            <div style="text-align: center; color: var(--color-danger); font-size: 14px; padding: 20px;">
-              ❌ 无法获取当前页面<br>
-              <span style="font-size: 12px; color: var(--color-text-secondary);">${error.message}</span>
-            </div>
-          </div>
-        `;
-        resolve([]);
+        if (modelSelectionCancelBtn._tempHandler) {
+          modelSelectionCancelBtn.removeEventListener('click', modelSelectionCancelBtn._tempHandler);
+          modelSelectionCancelBtn._tempHandler = null;
+        }
+        showError('❌ 无法获取当前页面', error.message);
         return;
       }
       
@@ -1733,15 +1804,11 @@ async function showModelSelectionModal(channelId) {
       }
       
       if (!scriptReady) {
-        modelSelectionList.innerHTML = `
-          <div class="error-state">
-            <div style="text-align: center; color: var(--color-danger); font-size: 14px; padding: 20px;">
-              ❌ 无法连接到页面脚本<br>
-              <span style="font-size: 12px; color: var(--color-text-secondary);">请刷新页面后重试</span>
-            </div>
-          </div>
-        `;
-        resolve([]);
+        if (modelSelectionCancelBtn._tempHandler) {
+          modelSelectionCancelBtn.removeEventListener('click', modelSelectionCancelBtn._tempHandler);
+          modelSelectionCancelBtn._tempHandler = null;
+        }
+        showError('❌ 无法连接到页面脚本', '请刷新页面后重试');
         return;
       }
       
@@ -1754,15 +1821,11 @@ async function showModelSelectionModal(channelId) {
         });
       } catch (error) {
         console.error('❌ 获取模型列表请求失败:', error);
-        modelSelectionList.innerHTML = `
-          <div class="error-state">
-            <div style="text-align: center; color: var(--color-danger); font-size: 14px; padding: 20px;">
-              ❌ 网络请求失败<br>
-              <span style="font-size: 12px; color: var(--color-text-secondary);">${error.message}</span>
-            </div>
-          </div>
-        `;
-        resolve([]);
+        if (modelSelectionCancelBtn._tempHandler) {
+          modelSelectionCancelBtn.removeEventListener('click', modelSelectionCancelBtn._tempHandler);
+          modelSelectionCancelBtn._tempHandler = null;
+        }
+        showError('❌ 网络请求失败', error.message);
         return;
       }
       
@@ -1773,17 +1836,27 @@ async function showModelSelectionModal(channelId) {
         // 特别处理404错误和其他常见错误
         if (errorMessage.includes('404') || (result.response && result.response.warning)) {
           console.warn('⚠️ 检测到404错误或警告，使用空模型列表继续执行');
-          availableModels = []; // 设置为空数组而不是返回错误
-        } else {
+          availableModels = []; // 设置为空数组
+          // 直接跳转到空模型处理逻辑
+          if (modelSelectionCancelBtn._tempHandler) {
+            modelSelectionCancelBtn.removeEventListener('click', modelSelectionCancelBtn._tempHandler);
+            modelSelectionCancelBtn._tempHandler = null;
+          }
           modelSelectionList.innerHTML = `
-            <div class="error-state">
-              <div style="text-align: center; color: var(--color-danger); font-size: 14px; padding: 20px;">
-                ❌ 获取模型列表失败<br>
-                <span style="font-size: 12px; color: var(--color-text-secondary);">${errorMessage}</span>
-              </div>
+            <div class="empty-state">
+              <div class="empty-state-icon">📭</div>
+              <div class="empty-state-text">该渠道没有可用的模型</div>
             </div>
           `;
-          resolve([]);
+          if (modelSelectionCancelBtn) modelSelectionCancelBtn.disabled = false;
+          bindModelSelectionEvents(resolve, []);
+          return;
+        } else {
+          if (modelSelectionCancelBtn._tempHandler) {
+            modelSelectionCancelBtn.removeEventListener('click', modelSelectionCancelBtn._tempHandler);
+            modelSelectionCancelBtn._tempHandler = null;
+          }
+          showError('❌ 获取模型列表失败', errorMessage);
           return;
         }
       }
@@ -1791,15 +1864,11 @@ async function showModelSelectionModal(channelId) {
       // 验证响应数据
       if (!result.response || !Array.isArray(result.response.models)) {
         console.error('❌ 模型列表数据格式错误:', result.response);
-        modelSelectionList.innerHTML = `
-          <div class="error-state">
-            <div style="text-align: center; color: var(--color-danger); font-size: 14px; padding: 20px;">
-              ❌ 模型列表数据格式错误<br>
-              <span style="font-size: 12px; color: var(--color-text-secondary);">请稍后重试</span>
-            </div>
-          </div>
-        `;
-        resolve([]);
+        if (modelSelectionCancelBtn._tempHandler) {
+          modelSelectionCancelBtn.removeEventListener('click', modelSelectionCancelBtn._tempHandler);
+          modelSelectionCancelBtn._tempHandler = null;
+        }
+        showError('❌ 模型列表数据格式错误', '请稍后重试');
         return;
       }
       
@@ -1808,13 +1877,19 @@ async function showModelSelectionModal(channelId) {
       console.log(`🔍 获取到可用模型列表: ${availableModels.length} 个`, availableModels);
       
       if (availableModels.length === 0) {
+        if (modelSelectionCancelBtn._tempHandler) {
+          modelSelectionCancelBtn.removeEventListener('click', modelSelectionCancelBtn._tempHandler);
+          modelSelectionCancelBtn._tempHandler = null;
+        }
         modelSelectionList.innerHTML = `
           <div class="empty-state">
             <div class="empty-state-icon">📭</div>
             <div class="empty-state-text">该渠道没有可用的模型</div>
           </div>
         `;
-        resolve([]);
+        // 即使没有模型，也要允许关闭
+        if (modelSelectionCancelBtn) modelSelectionCancelBtn.disabled = false;
+        bindModelSelectionEvents(resolve, []);
         return;
       }
       
@@ -1844,15 +1919,11 @@ async function showModelSelectionModal(channelId) {
         renderModelSelectionList();
       } catch (error) {
         console.error('❌ 渲染模型选择列表失败:', error);
-        modelSelectionList.innerHTML = `
-          <div class="error-state">
-            <div style="text-align: center; color: var(--color-danger); font-size: 14px; padding: 20px;">
-              ❌ 渲染模型列表失败<br>
-              <span style="font-size: 12px; color: var(--color-text-secondary);">${error.message}</span>
-            </div>
-          </div>
-        `;
-        resolve([]);
+        if (modelSelectionCancelBtn._tempHandler) {
+          modelSelectionCancelBtn.removeEventListener('click', modelSelectionCancelBtn._tempHandler);
+          modelSelectionCancelBtn._tempHandler = null;
+        }
+        showError('❌ 渲染模型列表失败', error.message);
         return;
       }
       
@@ -1861,20 +1932,18 @@ async function showModelSelectionModal(channelId) {
       deselectAllModelsBtn.disabled = false;
       modelSelectionConfirmBtn.disabled = false;
       
+      // 移除临时处理函数
+      if (modelSelectionCancelBtn._tempHandler) {
+        modelSelectionCancelBtn.removeEventListener('click', modelSelectionCancelBtn._tempHandler);
+        modelSelectionCancelBtn._tempHandler = null;
+      }
+      
       // 绑定事件
       try {
         bindModelSelectionEvents(resolve, initialSelectedModels);
       } catch (error) {
         console.error('❌ 绑定模型选择事件失败:', error);
-        modelSelectionList.innerHTML = `
-          <div class="error-state">
-            <div style="text-align: center; color: var(--color-danger); font-size: 14px; padding: 20px;">
-              ❌ 绑定事件失败<br>
-              <span style="font-size: 12px; color: var(--color-text-secondary);">${error.message}</span>
-            </div>
-          </div>
-        `;
-        resolve([]);
+        showError('❌ 绑定事件失败', error.message);
         return;
       }
       
@@ -2198,8 +2267,13 @@ function renderModelSelectionList(searchTerm = '') {
   modelSelectionList.appendChild(fragment);
   updateModelSelectionStats();
   
+  // 移除旧的事件监听器（如果存在）
+  if (modelSelectionList._changeHandler) {
+    modelSelectionList.removeEventListener('change', modelSelectionList._changeHandler);
+  }
+  
   // 绑定复选框事件 - 使用事件委托避免重复绑定
-  modelSelectionList.addEventListener('change', (e) => {
+  const changeHandler = (e) => {
     if (e.target.classList.contains('model-checkbox')) {
       const model = e.target.dataset.model;
       const modelItem = e.target.closest('.model-selection-item');
@@ -2217,7 +2291,11 @@ function renderModelSelectionList(searchTerm = '') {
       // 只更新统计信息，不重新渲染列表（保持用户选择的模型在原位置）
       updateModelSelectionStats();
     }
-  });
+  };
+  
+  // 保存处理器引用以便后续移除
+  modelSelectionList._changeHandler = changeHandler;
+  modelSelectionList.addEventListener('change', changeHandler);
 }
 
 /**
@@ -2233,6 +2311,12 @@ function updateModelSelectionStats() {
   selectAllModelsBtn.disabled = selected === total;
   deselectAllModelsBtn.disabled = selected === 0;
 }
+
+// 全局变量存储当前的事件处理函数，用于解绑
+let currentCancelHandler = null;
+let currentConfirmHandler = null;
+let currentOverlayHandler = null;
+let currentEscHandler = null;
 
 /**
  * 绑定模型选择弹窗事件
@@ -2485,22 +2569,26 @@ function bindModelSelectionEvents(resolve, initialSelectedModels = []) {
     // 重新绑定按钮事件（避免重复绑定）
     try {
       // 先移除旧的事件监听器（如果存在）
-      if (modelSelectionCancelBtn) {
-        modelSelectionCancelBtn.removeEventListener('click', handleCancel);
+      if (modelSelectionCancelBtn && currentCancelHandler) {
+        modelSelectionCancelBtn.removeEventListener('click', currentCancelHandler);
       }
-      if (modelSelectionConfirmBtn) {
-        modelSelectionConfirmBtn.removeEventListener('click', handleConfirm);
+      if (modelSelectionConfirmBtn && currentConfirmHandler) {
+        modelSelectionConfirmBtn.removeEventListener('click', currentConfirmHandler);
       }
 
-      // 直接在现有按钮上添加事件监听器，而不是克隆和替换
+      // 更新当前的事件处理函数引用
+      currentCancelHandler = handleCancel;
+      currentConfirmHandler = handleConfirm;
+
+      // 直接在现有按钮上添加事件监听器
       if (modelSelectionCancelBtn) {
-        modelSelectionCancelBtn.addEventListener('click', handleCancel);
+        modelSelectionCancelBtn.addEventListener('click', currentCancelHandler);
       } else {
         console.warn('⚠️ modelSelectionCancelBtn 不存在，无法绑定取消事件');
       }
 
       if (modelSelectionConfirmBtn) {
-        modelSelectionConfirmBtn.addEventListener('click', handleConfirm);
+        modelSelectionConfirmBtn.addEventListener('click', currentConfirmHandler);
       } else {
         console.warn('⚠️ modelSelectionConfirmBtn 不存在，无法绑定确认事件');
       }
@@ -2528,7 +2616,11 @@ function bindModelSelectionEvents(resolve, initialSelectedModels = []) {
       }
     };
     
-    modelSelectionModal.addEventListener('click', handleOverlayClick);
+    if (modelSelectionModal && currentOverlayHandler) {
+      modelSelectionModal.removeEventListener('click', currentOverlayHandler);
+    }
+    currentOverlayHandler = handleOverlayClick;
+    modelSelectionModal.addEventListener('click', currentOverlayHandler);
     
     // ESC 键关闭
     const handleEscKey = (e) => {
@@ -2540,14 +2632,21 @@ function bindModelSelectionEvents(resolve, initialSelectedModels = []) {
         if (e.key === 'Escape' && modelSelectionModal.classList.contains('show')) {
           console.log('🔍 用户按ESC键关闭弹窗');
           handleCancel();
-          document.removeEventListener('keydown', handleEscKey);
+          if (currentEscHandler) {
+             document.removeEventListener('keydown', currentEscHandler);
+             currentEscHandler = null;
+          }
         }
       } catch (error) {
         console.error('❌ 处理ESC键事件时出错:', error);
       }
     };
     
-    document.addEventListener('keydown', handleEscKey);
+    if (currentEscHandler) {
+      document.removeEventListener('keydown', currentEscHandler);
+    }
+    currentEscHandler = handleEscKey;
+    document.addEventListener('keydown', currentEscHandler);
     
     console.log('✅ 模型选择事件绑定完成');
     
